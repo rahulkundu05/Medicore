@@ -38,6 +38,11 @@ async function sendRegistrationOtp(email, otp) {
         user,
         pass,
       },
+      tls: {
+        rejectUnauthorized: false // Prevents certificate verification failures in Vercel/serverless runtimes
+      },
+      connectionTimeout: 10000,
+      socketTimeout: 15000,
     });
 
     const mailOptions = {
