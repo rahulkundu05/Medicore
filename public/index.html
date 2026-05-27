@@ -19,6 +19,19 @@
   }
 </script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  (function() {
+    const savedTheme = localStorage.getItem('mc_theme') || 'system';
+    const isDark = savedTheme === 'system' 
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches 
+      : savedTheme === 'dark';
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -27,6 +40,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
 tailwind.config = {
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: { display: ['Playfair Display','serif'], body: ['Outfit','sans-serif'] },
@@ -129,6 +143,131 @@ tailwind.config = {
     .mobile-toggle{display:flex;align-items:center;justify-content:center;}
   }
   .bg-pattern{background-image:radial-gradient(circle at 1px 1px,rgba(5,150,105,.03) 1px,transparent 0);background-size:32px 32px;}
+
+  /* ============ DARK MODE STYLES & VARIABLE OVERRIDES ============ */
+  html.dark {
+    --bg: #0B0F19;
+    --fg: #F1F5F9;
+    --muted: #94A3B8;
+    --accent: #10B981;
+    --accent-dark: #059669;
+    --accent-light: rgba(16, 185, 129, 0.1);
+    --card: #161E2E;
+    --border: #2D3748;
+  }
+  html.dark body {
+    background: var(--bg);
+    color: var(--fg);
+  }
+  html.dark ::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+  html.dark .text-slate-900,
+  html.dark .text-slate-800 {
+    color: #F8FAFC !important;
+  }
+  html.dark .text-slate-700,
+  html.dark .text-slate-600 {
+    color: #E2E8F0 !important;
+  }
+  html.dark .text-slate-500 {
+    color: #94A3B8 !important;
+  }
+  html.dark .text-slate-400 {
+    color: #64748B !important;
+  }
+  html.dark .text-brand-800 {
+    color: #34D399 !important;
+  }
+  html.dark .text-brand-900 {
+    color: #6EE7B7 !important;
+  }
+  html.dark .bg-white {
+    background-color: var(--card) !important;
+  }
+  html.dark .bg-slate-50 {
+    background-color: #0F172A !important;
+  }
+  html.dark .bg-slate-100 {
+    background-color: #1E293B !important;
+  }
+  html.dark .bg-slate-200 {
+    background-color: #334155 !important;
+  }
+  html.dark .bg-brand-50 {
+    background-color: rgba(5, 150, 105, 0.1) !important;
+  }
+  html.dark .bg-blue-50 {
+    background-color: rgba(14, 165, 233, 0.1) !important;
+  }
+  html.dark .bg-amber-50 {
+    background-color: rgba(245, 158, 11, 0.1) !important;
+  }
+  html.dark .bg-red-50 {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+  }
+  html.dark .border-slate-100,
+  html.dark .border-slate-200 {
+    border-color: var(--border) !important;
+  }
+  html.dark .auth-card {
+    background: rgba(22, 30, 46, 0.95) !important;
+    border: 1px solid var(--border) !important;
+  }
+  html.dark .input-field {
+    background: #0F172A !important;
+    border-color: var(--border) !important;
+    color: var(--fg) !important;
+  }
+  html.dark .input-field:focus {
+    background: #1E293B !important;
+  }
+  html.dark .form-input,
+  html.dark .form-select {
+    background: #0F172A !important;
+    border-color: var(--border) !important;
+    color: var(--fg) !important;
+  }
+  html.dark .form-input:focus,
+  html.dark .form-select:focus {
+    background: #1E293B !important;
+  }
+  html.dark .modal-box {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+  }
+  html.dark .data-table th {
+    background: #1E293B !important;
+    color: var(--muted) !important;
+  }
+  html.dark .data-table td {
+    border-color: var(--border) !important;
+    color: var(--fg) !important;
+  }
+  html.dark .data-table tr:hover td {
+    background: #1E293B !important;
+  }
+  html.dark .skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%) !important;
+    background-size: 200% 100% !important;
+  }
+  html.dark .sidebar {
+    background: linear-gradient(180deg, #0B0F19, #161E2E) !important;
+    border-right: 1px solid var(--border);
+  }
+  html.dark .sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+  html.dark .sidebar-link.active {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34D399 !important;
+  }
+  html.dark .bg-pattern {
+    background-image: radial-gradient(circle at 1px 1px, rgba(16, 185, 129, 0.05) 1px, transparent 0) !important;
+  }
 </style>
 </head>
 <body>
@@ -957,6 +1096,38 @@ tailwind.config = {
           <button class="btn btn-accent" onclick="updateProfile()"><i class="fa-solid fa-floppy-disk mr-2"></i>Save Changes</button>
         </div>
       </div>
+
+      <div class="content-card max-w-lg mt-6">
+        <h3 class="font-semibold text-slate-800 mb-1 text-left flex items-center gap-2">
+          <i class="fa-solid fa-palette text-brand-600"></i> App Theme Preferences
+        </h3>
+        <p class="text-xs text-slate-500 mb-4 text-left">Choose how MediCore looks on your device</p>
+        <div class="grid grid-cols-3 gap-3">
+          <!-- Light Theme -->
+          <button onclick="setAppTheme('light')" id="themeBtn-light" class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 hover:scale-[1.02] cursor-pointer" style="border-color: var(--border); background: var(--card);">
+            <div class="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center text-amber-500 shadow-sm">
+              <i class="fa-solid fa-sun text-lg"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">Light</span>
+          </button>
+          
+          <!-- Dark Theme -->
+          <button onclick="setAppTheme('dark')" id="themeBtn-dark" class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 hover:scale-[1.02] cursor-pointer" style="border-color: var(--border); background: var(--card);">
+            <div class="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-500 shadow-sm">
+              <i class="fa-solid fa-moon text-lg"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">Dark</span>
+          </button>
+          
+          <!-- System Default -->
+          <button onclick="setAppTheme('system')" id="themeBtn-system" class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 hover:scale-[1.02] cursor-pointer" style="border-color: var(--border); background: var(--card);">
+            <div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center text-slate-600 dark:text-slate-400 shadow-sm">
+              <i class="fa-solid fa-circle-half-stroke text-lg"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">System</span>
+          </button>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -965,6 +1136,64 @@ tailwind.config = {
 <div id="modalContainer"></div>
 
 <script>
+// =====================================================================
+// THEME MANAGEMENT
+// =====================================================================
+function applyTheme(theme) {
+  let isDark = false;
+  if (theme === 'system') {
+    isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } else {
+    isDark = theme === 'dark';
+  }
+  
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+  
+  updateThemeUI(theme);
+}
+
+function setAppTheme(theme) {
+  localStorage.setItem('mc_theme', theme);
+  applyTheme(theme);
+  toast(`Theme changed to ${theme}`, 'success');
+}
+
+function updateThemeUI(activeTheme) {
+  const themes = ['light', 'dark', 'system'];
+  themes.forEach(t => {
+    const btn = document.getElementById(`themeBtn-${t}`);
+    if (btn) {
+      if (t === activeTheme) {
+        btn.style.borderColor = 'var(--accent)';
+        btn.style.background = 'var(--accent-light)';
+        btn.classList.add('shadow-md', 'scale-[1.03]');
+      } else {
+        btn.style.borderColor = 'var(--border)';
+        btn.style.background = 'var(--card)';
+        btn.classList.remove('shadow-md', 'scale-[1.03]');
+      }
+    }
+  });
+}
+
+// Watch system theme changes dynamically if 'system' theme is chosen
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  const currentTheme = localStorage.getItem('mc_theme') || 'system';
+  if (currentTheme === 'system') {
+    applyTheme('system');
+  }
+});
+
+// Run initial active UI highlighting
+setTimeout(() => {
+  const activeTheme = localStorage.getItem('mc_theme') || 'system';
+  updateThemeUI(activeTheme);
+}, 100);
+
 // =====================================================================
 // API LAYER — all HTTP calls go through here
 // =====================================================================
@@ -1799,6 +2028,32 @@ function togglePrescriptionOption(hasPresc) {
 }
 
 async function runPrescriptionAIScanner(base64Image, source) {
+  // Clear previous values at start of scanner to ensure only AI extracted details are shown
+  globalPrescDoctor = '';
+  globalPrescDate = '';
+  globalPrescPatient = '';
+  globalPrescMedicine = '';
+  globalOutOfStockMedicines = [];
+  
+  const syncInput = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+  syncInput('dashPrescDoctor', '');
+  syncInput('dashPrescDate', '');
+  syncInput('dashPrescPatient', '');
+  syncInput('dashPrescMedicine', '');
+  syncInput('chkPrescDoctor', '');
+  syncInput('chkPrescDate', '');
+  syncInput('chkPrescPatient', '');
+  syncInput('chkPrescMedicine', '');
+
+  const alertBox = document.getElementById('dashPrescAlertContainer');
+  if (alertBox) {
+    alertBox.innerHTML = '';
+    alertBox.style.display = 'none';
+  }
+
   const loadingHtml = `
     <div class="text-center p-6 space-y-4 text-slate-700">
       <div class="relative w-16 h-16 mx-auto flex items-center justify-center">
@@ -2813,6 +3068,10 @@ async function initProfile() {
         ageMobileGrid.classList.add('grid-cols-2');
       }
     }
+    
+    // Update theme switcher UI state
+    const savedTheme = localStorage.getItem('mc_theme') || 'system';
+    updateThemeUI(savedTheme);
   } catch (err) {
     toast('Failed to load profile', 'error');
   }

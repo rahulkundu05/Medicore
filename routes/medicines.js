@@ -99,115 +99,113 @@ router.post('/parse-prescription', auth, async (req, res) => {
       return res.status(400).json({ error: 'No prescription image provided' });
     }
 
-    let doctor = "Dr. Robert Chen, MD, FACP (Reg No: MC-45920-B)";
-    let date = new Date().toISOString().split('T')[0];
-    let patient = req.user.name || "Rahul (Self)";
-    let medicines = ["Amoxicillin", "Cetirizine"];
-    let usingGemini = false;
-
     // Check if Gemini API key is configured
     const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey && apiKey.trim() !== "" && !apiKey.startsWith("YOUR_")) {
-      try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    if (!apiKey || apiKey.trim() === "" || apiKey.startsWith("YOUR_")) {
+      return res.status(400).json({ 
+        error: "Google Gemini API key is not configured. Please add a valid GEMINI_API_KEY to your .env file." 
+      });
+    }
 
-        const base64Matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-        if (base64Matches && base64Matches.length === 3) {
-          const mimeType = base64Matches[1];
-          const base64Data = base64Matches[2];
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-          const imagePart = {
-            inlineData: {
-              data: base64Data,
-              mimeType
-            }
+      const base64Matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (!base64Matches || base64Matches.length !== 3) {
+        return res.status(400).json({ error: "Invalid base64 image format" });
+      }
+
+      const mimeType = base64Matches[1];
+      const base64Data = base64Matches[2];
+
+      const imagePart = {
+        inlineData: {
+          data: base64Data,
+          mimeType
+        }
+      };
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const userName = req.user ? req.user.name : "";
+
+      const prompt = `
+        You are an expert clinical medical prescription parser. Analyze the uploaded medical prescription image.
+        Identify and extract the following details in a clean structured format:
+        1. Doctor details (credentials like MD/MBBS, clinic name) and Registration Number if visible. If not visible, return "".
+        2. Date of prescription in standard YYYY-MM-DD format. If not found, return "${todayStr}".
+        3. Patient name if visible. If not visible, return "${userName}".
+        4. Prescribed Medicines: Extract a clean array of medicine names mentioned in the prescription. Look closely for active ingredients (e.g. Paracetamol, Azithromycin, Cough Syrup, Insulin, Amoxicillin, Omeprazole, Ibuprofen, Atorvastatin, Metformin, Lisinopril, Albuterol Inhaler, Pantoprazole, Cetirizine, Montelukast, etc.).
+
+        Format your response as a valid JSON object ONLY. Do not wrap in markdown or backticks (e.g. do NOT include \`\`\`json). The response must conform to this schema:
+        {
+          "doctor": "extracted doctor name and reg no details or empty string",
+          "date": "YYYY-MM-DD",
+          "patient": "extracted patient name or empty string",
+          "medicines": ["Medicine1", "Medicine2"]
+        }
+      `;
+
+      const result = await model.generateContent([prompt, imagePart]);
+      const responseText = result.response.text().trim();
+      
+      let cleanJsonStr = responseText;
+      if (cleanJsonStr.startsWith("```")) {
+        cleanJsonStr = cleanJsonStr.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+      }
+
+      const parsed = JSON.parse(cleanJsonStr);
+      if (!parsed) {
+        throw new Error("Failed to parse AI response as JSON");
+      }
+
+      const doctor = parsed.doctor || "";
+      const date = parsed.date || todayStr;
+      const patient = parsed.patient || userName;
+      const medicines = parsed.medicines || [];
+
+      // Check medicine stock in database
+      const matchedMeds = [];
+      const outOfStockMeds = [];
+
+      for (const name of medicines) {
+        const med = await Medicine.findOne({ name: new RegExp('^' + name.trim() + '$', 'i') });
+        if (med) {
+          const itemInfo = {
+            id: med._id,
+            name: med.name,
+            price: med.price,
+            stock: med.stock
           };
-
-          const prompt = `
-            You are an expert clinical medical prescription parser. Analyze the uploaded medical prescription image.
-            Identify and extract the following details in a clean structured format:
-            1. Doctor details (credentials like MD/MBBS, clinic name, e.g., "Dr. Robert Chen, MD") and Registration Number if visible.
-            2. Date of prescription in standard YYYY-MM-DD format (if not found or unclear, output standard today's date: ${date}).
-            3. Patient name (if visible, otherwise "${patient}").
-            4. Prescribed Medicines: Extract a clean array of medicine names mentioned in the prescription. Look closely for active ingredients (e.g. Paracetamol, Azithromycin, Cough Syrup, Insulin, Amoxicillin, Omeprazole, Ibuprofen, Atorvastatin, Metformin, Lisinopril, Albuterol Inhaler, Pantoprazole, Cetirizine, Montelukast, etc.).
-
-            Format your response as a valid JSON object ONLY. Do not wrap in markdown or backticks (e.g. do NOT include \`\`\`json). The response must conform to this schema:
-            {
-              "doctor": "extracted doctor name and reg no details",
-              "date": "YYYY-MM-DD",
-              "patient": "extracted patient name",
-              "medicines": ["Medicine1", "Medicine2"]
-            }
-          `;
-
-          const result = await model.generateContent([prompt, imagePart]);
-          const responseText = result.response.text().trim();
-          
-          let cleanJsonStr = responseText;
-          if (cleanJsonStr.startsWith("```")) {
-            cleanJsonStr = cleanJsonStr.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+          if (med.stock > 0) {
+            matchedMeds.push(itemInfo);
+          } else {
+            outOfStockMeds.push({ name: med.name, reason: 'Out of Stock' });
           }
-
-          const parsed = JSON.parse(cleanJsonStr);
-          if (parsed) {
-            if (parsed.doctor) doctor = parsed.doctor;
-            if (parsed.date) date = parsed.date;
-            if (parsed.patient) patient = parsed.patient;
-            if (parsed.medicines && Array.isArray(parsed.medicines)) medicines = parsed.medicines;
-            usingGemini = true;
-          }
-        }
-      } catch (geminiError) {
-        console.error("⚠️ Gemini API Call failed, falling back to heuristic simulator:", geminiError.message);
-      }
-    }
-
-    if (!usingGemini) {
-      if (image.length % 3 === 0) {
-        doctor = "Dr. Jane Smith, MD (Reg No: MC-74920-A)";
-        medicines = ["Paracetamol", "Omeprazole", "Daily Multivitamin"];
-      } else if (image.length % 5 === 0) {
-        doctor = "Dr. Amit Sharma, MBBS, MS (Reg No: MC-82910-D)";
-        medicines = ["Azithromycin", "Cough Syrup", "Vitamin D"];
-      }
-    }
-
-    // Check medicine stock in database
-    const matchedMeds = [];
-    const outOfStockMeds = [];
-
-    for (const name of medicines) {
-      const med = await Medicine.findOne({ name: new RegExp('^' + name.trim() + '$', 'i') });
-      if (med) {
-        const itemInfo = {
-          id: med._id,
-          name: med.name,
-          price: med.price,
-          stock: med.stock
-        };
-        if (med.stock > 0) {
-          matchedMeds.push(itemInfo);
         } else {
-          outOfStockMeds.push({ name: med.name, reason: 'Out of Stock' });
+          outOfStockMeds.push({ name: name, reason: 'Not in Catalog' });
         }
-      } else {
-        outOfStockMeds.push({ name: name, reason: 'Not in Catalog' });
       }
-    }
 
-    res.json({
-      success: true,
-      usingGemini,
-      data: {
-        doctor,
-        date,
-        patient,
-        medicineText: medicines.join(', '),
-        matchedMedicines: matchedMeds,
-        outOfStockMedicines: outOfStockMeds
-      }
-    });
+      res.json({
+        success: true,
+        usingGemini: true,
+        data: {
+          doctor,
+          date,
+          patient,
+          medicineText: medicines.join(', '),
+          matchedMedicines: matchedMeds,
+          outOfStockMedicines: outOfStockMeds
+        }
+      });
+
+    } catch (geminiError) {
+      console.error("⚠️ Gemini API Call failed:", geminiError);
+      res.status(500).json({ 
+        error: `Google Gemini AI parsing failed: ${geminiError.message}. Please verify your API key and connection.` 
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
