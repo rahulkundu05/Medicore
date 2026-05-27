@@ -57,6 +57,7 @@ async function main() {
       email: adminEmail,
       password: 'admin123',
       role: 'admin',
+      isVerified: true,
     });
     
     console.log(`✅ Clean System Admin seeded successfully!`);

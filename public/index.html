@@ -381,10 +381,10 @@ tailwind.config = {
   <div class="auth-card p-8 md:p-10 w-full max-w-md relative z-10">
     <div class="text-center mb-6">
       <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 mb-3 shadow-lg shadow-brand-500/30">
-        <i class="fa-solid fa-user-plus text-white text-xl"></i>
+        <i id="registerCardHeaderIcon" class="fa-solid fa-user-plus text-white text-xl"></i>
       </div>
-      <h1 class="font-display text-2xl text-slate-900">Create Account</h1>
-      <p class="text-slate-500 mt-1 text-sm">Join MediCore for smart healthcare</p>
+      <h1 id="registerCardTitle" class="font-display text-2xl text-slate-900">Create Account</h1>
+      <p id="registerCardSubtitle" class="text-slate-500 mt-1 text-sm">Join MediCore for smart healthcare</p>
     </div>
     <form id="registerForm" onsubmit="handleRegister(event)">
       <div class="grid grid-cols-2 gap-3 mb-4">
@@ -435,6 +435,40 @@ tailwind.config = {
         Represent a healthcare clinic?
         <a href="#" onclick="showHospitalRegister()" class="text-indigo-600 font-semibold hover:underline">Register Hospital</a>
       </p>
+    </form>
+
+    <!-- OTP Verification Form -->
+    <form id="otpForm" onsubmit="handleVerifyOtp(event)" style="display:none">
+      <div class="text-center mb-6">
+        <p class="text-slate-500 text-sm leading-relaxed">
+          We have sent a 6-digit verification code to <br><span id="otpTargetEmail" class="font-bold text-slate-800 dark:text-slate-100 underline decoration-brand-500 decoration-2">your email</span>.
+        </p>
+      </div>
+
+
+
+      <!-- 6-digit inputs container -->
+      <div class="flex justify-center gap-2 mb-6">
+        <input type="text" maxlength="1" class="w-11 h-12 text-center text-xl font-bold border-2 rounded-xl focus:border-brand-500 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white otp-input" required pattern="[0-9]" style="border-color: var(--border);">
+        <input type="text" maxlength="1" class="w-11 h-12 text-center text-xl font-bold border-2 rounded-xl focus:border-brand-500 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white otp-input" required pattern="[0-9]" style="border-color: var(--border);">
+        <input type="text" maxlength="1" class="w-11 h-12 text-center text-xl font-bold border-2 rounded-xl focus:border-brand-500 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white otp-input" required pattern="[0-9]" style="border-color: var(--border);">
+        <input type="text" maxlength="1" class="w-11 h-12 text-center text-xl font-bold border-2 rounded-xl focus:border-brand-500 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white otp-input" required pattern="[0-9]" style="border-color: var(--border);">
+        <input type="text" maxlength="1" class="w-11 h-12 text-center text-xl font-bold border-2 rounded-xl focus:border-brand-500 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white otp-input" required pattern="[0-9]" style="border-color: var(--border);">
+        <input type="text" maxlength="1" class="w-11 h-12 text-center text-xl font-bold border-2 rounded-xl focus:border-brand-500 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white otp-input" required pattern="[0-9]" style="border-color: var(--border);">
+      </div>
+
+      <button type="submit" class="btn-primary mb-4 text-sm" id="verifyOtpBtn">
+        <i class="fa-solid fa-circle-check mr-2"></i>Verify &amp; Activate
+      </button>
+
+      <div class="flex justify-between items-center text-xs mb-2">
+        <button type="button" onclick="cancelOtpVerification()" class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-medium cursor-pointer">
+          <i class="fa-solid fa-arrow-left mr-1"></i>Back
+        </button>
+        <button type="button" id="resendOtpBtn" onclick="handleResendOtp()" class="text-brand-600 font-semibold hover:underline cursor-pointer flex items-center gap-1" disabled style="background:none; border:none; padding:0;">
+          Resend Code <span id="resendTimer">(60s)</span>
+        </button>
+      </div>
     </form>
   </div>
 </div>
@@ -1347,7 +1381,12 @@ async function apiCall(method, path, body = null) {
   const res = await fetch(API_BASE + path, opts);
   const data = await res.json();
 
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Request failed');
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 
@@ -1433,6 +1472,9 @@ function showHospitalRegister() {
   document.getElementById('hospitalRegisterPage').style.display = 'flex';
 }
 
+let pendingVerificationEmail = '';
+let resendTimerInterval = null;
+
 async function handleLogin(e) {
   e.preventDefault();
   const btn = document.getElementById('loginBtn');
@@ -1446,7 +1488,34 @@ async function handleLogin(e) {
     localStorage.setItem('mc_token', authToken);
     enterApp();
   } catch (err) {
-    toast(err.message, 'error');
+    if (err.data && err.data.isUnverified) {
+      pendingVerificationEmail = err.data.email;
+      
+      // Navigate to register view, then display OTP step
+      showRegister();
+      document.getElementById('registerForm').style.display = 'none';
+      document.getElementById('otpForm').style.display = 'block';
+      document.getElementById('otpTargetEmail').textContent = pendingVerificationEmail;
+      
+      // Update UI titles for verify step
+      document.getElementById('registerCardHeaderIcon').className = 'fa-solid fa-shield-halved text-white text-xl';
+      document.getElementById('registerCardTitle').textContent = 'Verify Email';
+      document.getElementById('registerCardSubtitle').textContent = 'Enter the code sent to your inbox';
+      
+      toast('Please verify your email to log in. A new OTP has been requested.', 'info');
+      
+      // Request a fresh OTP automatically
+      try {
+        await POST('/auth/resend-otp', { email: pendingVerificationEmail });
+      } catch (resendErr) {
+        console.warn('Failed to auto-resend OTP on block:', resendErr);
+      }
+
+      startResendCountdown();
+      setupOtpInputs();
+    } else {
+      toast(err.message, 'error');
+    }
   } finally {
     setLoading(btn, false);
   }
@@ -1466,16 +1535,161 @@ async function handleRegister(e) {
     if (!/^\d{10}$/.test(mobile)) { toast('Mobile must be 10 digits', 'error'); return; }
 
     const data = await POST('/auth/register', { name, age, mobile, email, password });
+    
+    // Switch to verification step
+    pendingVerificationEmail = email.toLowerCase();
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('otpForm').style.display = 'block';
+    document.getElementById('otpTargetEmail').textContent = pendingVerificationEmail;
+    
+    // Update card header details
+    document.getElementById('registerCardHeaderIcon').className = 'fa-solid fa-shield-halved text-white text-xl';
+    document.getElementById('registerCardTitle').textContent = 'Verify Email';
+    document.getElementById('registerCardSubtitle').textContent = 'Enter the code sent to your inbox';
+
+    toast('Verification OTP sent to your email!', 'success');
+    
+    startResendCountdown();
+    setupOtpInputs();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+async function handleVerifyOtp(e) {
+  e.preventDefault();
+  const btn = document.getElementById('verifyOtpBtn');
+  setLoading(btn, true);
+  try {
+    const inputs = document.querySelectorAll('.otp-input');
+    let otp = '';
+    inputs.forEach(input => { otp += input.value.trim(); });
+
+    if (otp.length !== 6) {
+      toast('Please enter the full 6-digit code', 'warning');
+      setLoading(btn, false);
+      return;
+    }
+
+    const data = await POST('/auth/verify-otp', { email: pendingVerificationEmail, otp });
     authToken   = data.token;
     currentUser = data.user;
     localStorage.setItem('mc_token', authToken);
-    toast('Account created successfully!', 'success');
+    toast('Account activated successfully!', 'success');
+    
+    resetOtpForm();
     enterApp();
   } catch (err) {
     toast(err.message, 'error');
   } finally {
     setLoading(btn, false);
   }
+}
+
+async function handleResendOtp() {
+  const btn = document.getElementById('resendOtpBtn');
+  btn.disabled = true;
+  try {
+    const data = await POST('/auth/resend-otp', { email: pendingVerificationEmail });
+    toast('A fresh verification OTP has been sent!', 'success');
+
+    startResendCountdown();
+    
+    // Clear inputs & refocus
+    const inputs = document.querySelectorAll('.otp-input');
+    inputs.forEach(input => { input.value = ''; });
+    if (inputs[0]) inputs[0].focus();
+  } catch (err) {
+    toast(err.message, 'error');
+    btn.disabled = false;
+  }
+}
+
+function startResendCountdown() {
+  const btn = document.getElementById('resendOtpBtn');
+  const timerSpan = document.getElementById('resendTimer');
+  btn.disabled = true;
+  
+  let seconds = 60;
+  timerSpan.textContent = `(${seconds}s)`;
+  
+  if (resendTimerInterval) clearInterval(resendTimerInterval);
+  
+  resendTimerInterval = setInterval(() => {
+    seconds--;
+    timerSpan.textContent = `(${seconds}s)`;
+    if (seconds <= 0) {
+      clearInterval(resendTimerInterval);
+      timerSpan.textContent = '';
+      btn.disabled = false;
+    }
+  }, 1000);
+}
+
+function cancelOtpVerification() {
+  resetOtpForm();
+  showRegister();
+}
+
+function resetOtpForm() {
+  if (resendTimerInterval) {
+    clearInterval(resendTimerInterval);
+    resendTimerInterval = null;
+  }
+  document.getElementById('otpForm').reset();
+  document.getElementById('otpForm').style.display = 'none';
+  document.getElementById('registerForm').style.display = 'block';
+  
+  // Restore card header details
+  document.getElementById('registerCardHeaderIcon').className = 'fa-solid fa-user-plus text-white text-xl';
+  document.getElementById('registerCardTitle').textContent = 'Create Account';
+  document.getElementById('registerCardSubtitle').textContent = 'Join MediCore for smart healthcare';
+}
+
+function setupOtpInputs() {
+  const inputs = document.querySelectorAll('.otp-input');
+  
+  inputs.forEach((input, index) => {
+    // Focus the first input initially
+    if (index === 0) {
+      setTimeout(() => input.focus(), 100);
+    }
+    
+    input.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (val.length > 1) {
+        e.target.value = val.charAt(0);
+      }
+      
+      // Auto-focus next input
+      if (val && index < inputs.length - 1) {
+        inputs[index + 1].focus();
+      }
+    });
+    
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        if (!e.target.value && index > 0) {
+          inputs[index - 1].focus();
+        } else {
+          e.target.value = '';
+        }
+      }
+    });
+    
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text').trim();
+      if (/^\d{6}$/.test(text)) {
+        for (let i = 0; i < 6; i++) {
+          inputs[i].value = text.charAt(i);
+        }
+        inputs[5].focus();
+      }
+    });
+  });
 }
 
 async function handleHospitalRegister(e) {

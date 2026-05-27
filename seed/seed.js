@@ -143,11 +143,13 @@ async function seedAdmin() {
       email: adminEmail,
       password: 'admin123',
       role: 'admin',
+      isVerified: true,
     });
     console.log('✅ Admin user seeded');
   } else {
     exists.role = 'admin';
     exists.password = 'admin123';
+    exists.isVerified = true;
     await exists.save();
     console.log('✅ Admin user verified and synced');
   }
