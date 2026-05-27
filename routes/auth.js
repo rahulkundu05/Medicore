@@ -41,7 +41,10 @@ router.post('/register', async (req, res) => {
       exists.otpExpires = otpExpires;
       await exists.save();
 
-      await sendRegistrationOtp(exists.email, otp);
+      const mailResult = await sendRegistrationOtp(exists.email, otp);
+      if (!mailResult.sent) {
+        return res.status(500).json({ error: `Email delivery failed: ${mailResult.error || 'Unknown error'}` });
+      }
 
       return res.status(200).json({
         message: 'Account details updated. A new verification OTP has been sent to your email.',
@@ -61,7 +64,10 @@ router.post('/register', async (req, res) => {
       otpExpires,
     });
 
-    await sendRegistrationOtp(user.email, otp);
+    const mailResult = await sendRegistrationOtp(user.email, otp);
+    if (!mailResult.sent) {
+      return res.status(500).json({ error: `Email delivery failed: ${mailResult.error || 'Unknown error'}` });
+    }
 
     res.status(201).json({
       message: 'Account registered. Verification OTP sent to email.',
@@ -146,7 +152,10 @@ router.post('/resend-otp', async (req, res) => {
     user.otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
     await user.save();
 
-    await sendRegistrationOtp(user.email, otp);
+    const mailResult = await sendRegistrationOtp(user.email, otp);
+    if (!mailResult.sent) {
+      return res.status(500).json({ error: `Email delivery failed: ${mailResult.error || 'Unknown error'}` });
+    }
 
     res.status(200).json({
       message: 'A fresh OTP has been sent to your email.',

@@ -30,20 +30,27 @@ async function sendRegistrationOtp(email, otp) {
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      host,
-      port: parseInt(port),
-      secure: parseInt(port) === 465, // true for 465, false for other ports
+    const transportConfig = {
       auth: {
         user,
         pass,
-      },
-      tls: {
-        rejectUnauthorized: false // Prevents certificate verification failures in Vercel/serverless runtimes
-      },
-      connectionTimeout: 10000,
-      socketTimeout: 15000,
-    });
+      }
+    };
+
+    if (host.toLowerCase().includes('gmail.com')) {
+      transportConfig.service = 'gmail';
+    } else {
+      transportConfig.host = host;
+      transportConfig.port = parseInt(port);
+      transportConfig.secure = parseInt(port) === 465;
+      transportConfig.tls = {
+        rejectUnauthorized: false
+      };
+      transportConfig.connectionTimeout = 10000;
+      transportConfig.socketTimeout = 15000;
+    }
+
+    const transporter = nodemailer.createTransport(transportConfig);
 
     const mailOptions = {
       from: `"MediCore Healthcare" <${from}>`,
