@@ -5600,6 +5600,89 @@ let alarmOscillators = [];
 let activeAlarmInterval = null;
 let activeAlarmObject = null;
 let customAudioPlayer = null;
+let isCustomAudioLoading = false;
+
+// IndexedDB Helper Logic for 20MB Custom Sounds
+const dbName = "MediCoreDB";
+const storeName = "CustomSounds";
+
+function getDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName, 1);
+    request.onupgradeneeded = function(e) {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName);
+      }
+    };
+    request.onsuccess = function(e) {
+      resolve(e.target.result);
+    };
+    request.onerror = function(e) {
+      reject(e.target.error);
+    };
+  });
+}
+
+function saveCustomSound(fileOrBlob) {
+  return getDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const req = store.put(fileOrBlob, 'pillAlarmCustomSound');
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  });
+}
+
+function getCustomSound() {
+  return getDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const req = store.get('pillAlarmCustomSound');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  });
+}
+
+// Convert "HH:MM AM/PM" to minutes since midnight for robust comparison
+function timeStringToMinutes(timeStr) {
+  const match = timeStr.match(/^(\d{2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const ampm = match[3].toUpperCase();
+  
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  
+  return hours * 60 + minutes;
+}
+
+// Request permission to send browser/Service Worker notifications
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    console.warn('This browser does not support desktop notifications');
+    return false;
+  }
+  if (Notification.permission === 'granted') {
+    return true;
+  }
+  if (Notification.permission !== 'denied') {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      toast('Notification permission granted! We will alert you even if minimized.', 'success');
+      return true;
+    } else {
+      toast('Notification permission denied. Alarms may not trigger in the background.', 'warning');
+      return false;
+    }
+  }
+  return false;
+}
 
 function renderPillAlarms() {
   const container = document.getElementById('pillAlarmsContainer');
@@ -5673,26 +5756,21 @@ function uploadCustomAlarmSound(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  if (file.size > 1.5 * 1024 * 1024) {
-    toast('File is too large! Please select an audio file under 1.5MB.', 'warning');
+  if (file.size > 20 * 1024 * 1024) {
+    toast('File is too large! Please select an audio file under 20MB.', 'warning');
     event.target.value = '';
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      localStorage.setItem('pillAlarmCustomSound', e.target.result);
-      toast('Custom alarm sound uploaded and verified!', 'success');
-    } catch (err) {
-      toast('Storage quota limit reached. Please choose a smaller sound file.', 'error');
-      event.target.value = '';
-    }
-  };
-  reader.onerror = function() {
-    toast('Failed to load selected audio file.', 'error');
-  };
-  reader.readAsDataURL(file);
+  const infoToast = toast('Saving custom alarm sound...', 'info');
+  saveCustomSound(file).then(() => {
+    localStorage.setItem('hasCustomAlarmSound', 'true');
+    toast('Custom alarm sound uploaded and verified!', 'success');
+  }).catch(err => {
+    console.error('IndexedDB save failed:', err);
+    toast('Storage limit or system error. Failed to save custom sound.', 'error');
+    event.target.value = '';
+  });
 }
 
 function toggleAddAlarmForm(show) {
@@ -5730,7 +5808,7 @@ function toggleAddAlarmForm(show) {
   }
 }
 
-function savePillAlarm() {
+async function savePillAlarm() {
   const medicineName = document.getElementById('alarmMedInput').value.trim();
   const hour = document.getElementById('alarmHourInput').value;
   const minute = document.getElementById('alarmMinInput').value;
@@ -5740,12 +5818,20 @@ function savePillAlarm() {
   if (!medicineName) { toast('Please enter a medicine name', 'warning'); return; }
   if (!hour || !minute || !ampm) { toast('Please schedule a valid time', 'warning'); return; }
 
-  if (soundType === 'custom' && !localStorage.getItem('pillAlarmCustomSound')) {
+  if (soundType === 'custom' && !localStorage.getItem('pillAlarmCustomSound') && !localStorage.getItem('hasCustomAlarmSound')) {
     toast('Please select and upload a custom audio file first!', 'warning');
     return;
   }
 
+  // Request notification permission when setting/saving alarm
+  await requestNotificationPermission();
+
   const time = `${hour}:${minute} ${ampm}`;
+  const now = new Date();
+  const todayDateStr = now.toISOString().split('T')[0];
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const alarmMinutes = timeStringToMinutes(time);
+  const isPastTimeToday = currentMinutes >= alarmMinutes;
 
   const newAlarm = {
     id: 'alarm_' + Date.now(),
@@ -5753,7 +5839,7 @@ function savePillAlarm() {
     time,
     soundType,
     enabled: true,
-    lastTriggeredDate: null
+    lastTriggeredDate: isPastTimeToday ? todayDateStr : null
   };
 
   pillAlarms.push(newAlarm);
@@ -5771,9 +5857,23 @@ function deletePillAlarm(id) {
   renderPillAlarms();
 }
 
-function togglePillAlarmStatus(id) {
+async function togglePillAlarmStatus(id) {
   const alarm = pillAlarms.find(a => a.id === id);
   if (!alarm) return;
+
+  if (!alarm.enabled) {
+    // Request permission if they are enabling it
+    await requestNotificationPermission();
+    
+    // Set to today's date if the time has already passed today to prevent immediate firing
+    const now = new Date();
+    const todayDateStr = now.toISOString().split('T')[0];
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const alarmMinutes = timeStringToMinutes(alarm.time);
+    if (currentMinutes >= alarmMinutes) {
+      alarm.lastTriggeredDate = todayDateStr;
+    }
+  }
 
   alarm.enabled = !alarm.enabled;
   localStorage.setItem('pillAlarms', JSON.stringify(pillAlarms));
@@ -5785,15 +5885,53 @@ function playPillAlarmSound() {
   const soundType = activeAlarmObject ? activeAlarmObject.soundType || 'beep' : 'beep';
   
   if (soundType === 'custom') {
-    const customData = localStorage.getItem('pillAlarmCustomSound');
-    if (customData) {
-      if (!customAudioPlayer) {
-        customAudioPlayer = new Audio(customData);
-        customAudioPlayer.loop = true;
-        customAudioPlayer.play().catch(e => console.error('Audio play failed:', e));
-      }
-      return;
+    if (!customAudioPlayer && !isCustomAudioLoading) {
+      isCustomAudioLoading = true;
+      getCustomSound().then(blob => {
+        if (!activeAlarmObject || !isCustomAudioLoading) {
+          isCustomAudioLoading = false;
+          return;
+        }
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          customAudioPlayer = new Audio(url);
+          customAudioPlayer.loop = true;
+          customAudioPlayer.play().then(() => {
+            isCustomAudioLoading = false;
+            if (!activeAlarmObject) {
+              customAudioPlayer.pause();
+              customAudioPlayer = null;
+            }
+          }).catch(e => {
+            console.error('Audio play failed:', e);
+            isCustomAudioLoading = false;
+          });
+        } else {
+          // Fallback to legacy localStorage custom sound
+          const customData = localStorage.getItem('pillAlarmCustomSound');
+          if (customData) {
+            customAudioPlayer = new Audio(customData);
+            customAudioPlayer.loop = true;
+            customAudioPlayer.play().then(() => {
+              isCustomAudioLoading = false;
+              if (!activeAlarmObject) {
+                customAudioPlayer.pause();
+                customAudioPlayer = null;
+              }
+            }).catch(e => {
+              console.error('Audio play failed:', e);
+              isCustomAudioLoading = false;
+            });
+          } else {
+            isCustomAudioLoading = false;
+          }
+        }
+      }).catch(err => {
+        console.error('Error reading custom sound from IndexedDB:', err);
+        isCustomAudioLoading = false;
+      });
     }
+    return;
   }
 
   try {
@@ -6047,6 +6185,7 @@ function stopAlarmSound() {
     clearInterval(activeAlarmInterval);
     activeAlarmInterval = null;
   }
+  isCustomAudioLoading = false;
   if (customAudioPlayer) {
     customAudioPlayer.pause();
     customAudioPlayer = null;
@@ -6068,18 +6207,35 @@ function triggerPillAlarm(alarm) {
     overlay.style.display = 'flex';
   }
 
-  // Play repeating medical chime chime
+  // Play repeating medical chime
   playPillAlarmSound();
   activeAlarmInterval = setInterval(playPillAlarmSound, 2500);
 
-  // Send browser notification if permission granted
+  // Send background-ready notification if permission granted
   if (Notification.permission === 'granted') {
-    new Notification('MediCore Pill Reminder!', {
-      body: `It's time to take your medicine: ${alarm.medicineName}`,
-      icon: '/favicon.ico'
-    });
+    if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification('MediCore Pill Reminder!', {
+          body: `It's time to take your medicine: ${alarm.medicineName}`,
+          icon: '/icons/icon-192x192.png',
+          badge: '/favicon.ico',
+          vibrate: [200, 100, 200, 100, 200, 100, 200],
+          tag: alarm.id,
+          requireInteraction: true,
+          actions: [
+            { action: 'take', title: "I've Taken It" },
+            { action: 'snooze', title: 'Snooze' }
+          ]
+        });
+      }).catch(e => console.error('Service worker notification failed:', e));
+    } else {
+      new Notification('MediCore Pill Reminder!', {
+        body: `It's time to take your medicine: ${alarm.medicineName}`,
+        icon: '/favicon.ico'
+      });
+    }
   } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission();
+    requestNotificationPermission();
   }
 }
 
@@ -6131,21 +6287,17 @@ setInterval(() => {
   if (pillAlarms.length === 0) return;
 
   const now = new Date();
-  let hours = now.getHours();
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12;
-  hours = hours ? hours : 12;
-  
-  const currentHour = String(hours).padStart(2, '0');
-  const currentMinute = String(now.getMinutes()).padStart(2, '0');
-  const currentTimeStr = `${currentHour}:${currentMinute} ${ampm}`;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const todayDateStr = now.toISOString().split('T')[0];
 
   pillAlarms.forEach(alarm => {
     if (!alarm.enabled) return;
     
-    // If the time matches exactly and has not fired today yet
-    if (currentTimeStr === alarm.time && alarm.lastTriggeredDate !== todayDateStr) {
+    const alarmMinutes = timeStringToMinutes(alarm.time);
+    if (alarmMinutes === null) return;
+
+    // Trigger if the time matches or has passed today, and hasn't fired yet today
+    if (currentMinutes >= alarmMinutes && alarm.lastTriggeredDate !== todayDateStr) {
       alarm.lastTriggeredDate = todayDateStr;
       localStorage.setItem('pillAlarms', JSON.stringify(pillAlarms));
       
@@ -6153,6 +6305,52 @@ setInterval(() => {
     }
   });
 }, 15000);
+
+// Listen for alarm action messages sent from the Service Worker notification buttons
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data && event.data.type === 'ALARM_ACTION') {
+      const { action, alarmId } = event.data;
+      if (action === 'take') {
+        if (activeAlarmObject && activeAlarmObject.id === alarmId) {
+          dismissPillAlarm(true);
+        } else {
+          // Fallback if background dismiss was clicked when app was closed/suspended
+          const alarm = pillAlarms.find(a => a.id === alarmId);
+          if (alarm) {
+            const today = new Date().toISOString().split('T')[0];
+            alarm.lastTriggeredDate = today;
+            localStorage.setItem('pillAlarms', JSON.stringify(pillAlarms));
+            renderPillAlarms();
+            toast(`Excellent! You marked "${alarm.medicineName}" as taken from notification.`, 'success');
+          }
+        }
+      } else if (action === 'snooze') {
+        if (activeAlarmObject && activeAlarmObject.id === alarmId) {
+          dismissPillAlarm(false);
+        } else {
+          const alarm = pillAlarms.find(a => a.id === alarmId);
+          if (alarm) {
+            const snoozedName = alarm.medicineName;
+            const snoozedId = alarm.id;
+            const snoozedSound = alarm.soundType || 'beep';
+            toast(`Reminder for "${snoozedName}" snoozed for 5 minutes`, 'info');
+            setTimeout(() => {
+              const activeState = pillAlarms.find(a => a.id === snoozedId);
+              if (activeState && activeState.enabled) {
+                triggerPillAlarm({
+                  id: snoozedId,
+                  medicineName: snoozedName + ' (Snoozed)',
+                  soundType: snoozedSound
+                });
+              }
+            }, 5 * 60 * 1000);
+          }
+        }
+      }
+    }
+  });
+}
 
 // =====================================================================
 // STARTUP — auto-login if token saved

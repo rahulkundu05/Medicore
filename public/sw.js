@@ -67,3 +67,32 @@ self.addEventListener('fetch', event => {
     })
   );
 });
+
+// Handle notification button actions and clicks even when app is minimized/closed
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  
+  const action = event.action; // 'take' or 'snooze'
+  const alarmId = event.notification.tag;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      // If a window client is already open, focus it and post a message
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus();
+          client.postMessage({
+            type: 'ALARM_ACTION',
+            action: action,
+            alarmId: alarmId
+          });
+          return;
+        }
+      }
+      // If no window is open, open the app
+      if (self.clients.openWindow) {
+        return self.clients.openWindow('/');
+      }
+    })
+  );
+});
