@@ -30,6 +30,11 @@
     } else {
       document.documentElement.classList.remove('dark');
     }
+
+    // Hide login page immediately if token exists to prevent flashing
+    if (localStorage.getItem('mc_token')) {
+      document.write('<style>#loginPage { display: none !important; }</style>');
+    }
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -287,11 +292,36 @@ tailwind.config = {
   html.dark .bg-pattern {
     background-image: radial-gradient(circle at 1px 1px, rgba(16, 185, 129, 0.05) 1px, transparent 0) !important;
   }
+  @keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
 </style>
 </head>
 <body>
 
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- ============ APP SPLASH SCREEN ============ -->
+<div id="appSplash" class="fixed inset-0 z-[10000] bg-slate-50 flex flex-col items-center justify-center transition-all duration-300" style="display: none;">
+  <script>
+    if (localStorage.getItem('mc_token')) {
+      document.getElementById('appSplash').style.display = 'flex';
+    }
+  </script>
+  <div class="text-center">
+    <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-700 mb-6 shadow-xl shadow-emerald-500/20 animate-pulse">
+      <i class="fa-solid fa-heart-pulse text-white text-3xl"></i>
+    </div>
+    <h2 class="font-display text-4xl text-slate-800 tracking-tight font-extrabold">MediCore</h2>
+    <p class="text-slate-400 mt-2 text-sm font-medium">Resuming session securely...</p>
+    <div class="mt-6 flex justify-center">
+      <div class="w-16 h-1 bg-emerald-100 rounded-full overflow-hidden">
+        <div class="h-full bg-emerald-600 rounded-full animate-[loading_1.5s_infinite_linear] w-[60px]"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ============ LOGIN PAGE ============ -->
 <div id="loginPage" class="auth-bg min-h-screen flex items-center justify-center p-4">
@@ -1485,6 +1515,11 @@ function handleLogout() {
 }
 
 function enterApp() {
+  const splash = document.getElementById('appSplash');
+  if (splash) {
+    splash.style.opacity = '0';
+    setTimeout(() => { splash.style.display = 'none'; }, 300);
+  }
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('registerPage').style.display = 'none';
   document.getElementById('hospitalRegisterPage').style.display = 'none';
@@ -5684,6 +5719,77 @@ async function requestNotificationPermission() {
   return false;
 }
 
+// Calculate next timestamp in milliseconds for "HH:MM AM/PM"
+function getAlarmNextTimestamp(alarmTimeStr) {
+  const match = alarmTimeStr.match(/^(\d{2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const ampm = match[3].toUpperCase();
+  
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  
+  const now = new Date();
+  const alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
+  
+  // If the scheduled time is already in the past for today, schedule it for tomorrow
+  if (alarmDate.getTime() <= now.getTime()) {
+    alarmDate.setDate(alarmDate.getDate() + 1);
+  }
+  
+  return alarmDate.getTime();
+}
+
+// Schedule local background alarm notification using modern standard Notification Triggers API (TimestampTrigger)
+function scheduleNotificationTrigger(alarm) {
+  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+    navigator.serviceWorker.ready.then(registration => {
+      const timestamp = getAlarmNextTimestamp(alarm.time);
+      if (!timestamp) return;
+
+      // Check if browser/OS supports TimestampTrigger (PWA standard)
+      if ('showTrigger' in Notification.prototype || 'TimestampTrigger' in window) {
+        registration.showNotification('MediCore Pill Reminder!', {
+          body: `It's time to take your medicine: ${alarm.medicineName}`,
+          icon: '/icons/icon-192x192.png',
+          badge: '/favicon.ico',
+          tag: alarm.id,
+          vibrate: [200, 100, 200, 100, 200, 100, 200],
+          requireInteraction: true,
+          actions: [
+            { action: 'take', title: "I've Taken It" },
+            { action: 'snooze', title: 'Snooze' }
+          ],
+          showTrigger: new TimestampTrigger(timestamp)
+        }).then(() => {
+          console.log(`Successfully scheduled PWA lock-screen background alarm trigger for "${alarm.medicineName}" at ${new Date(timestamp)}`);
+        }).catch(err => {
+          console.warn('Failed to schedule local PWA TimestampTrigger notification:', err);
+        });
+      } else {
+        console.log('TimestampTrigger is not supported natively by this platform. Relying on active Service Worker sync and background checks.');
+      }
+    }).catch(e => console.error('Service Worker not ready for trigger scheduling:', e));
+  }
+}
+
+// Cancel a scheduled background notification trigger
+function cancelNotificationTrigger(alarmId) {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(registration => {
+      if (registration.getNotifications) {
+        registration.getNotifications({ tag: alarmId }).then(notifications => {
+          notifications.forEach(notification => {
+            notification.close();
+            console.log(`Cancelled scheduled PWA trigger notification tag: ${alarmId}`);
+          });
+        });
+      }
+    }).catch(e => console.error('Service Worker not ready for trigger cancellation:', e));
+  }
+}
+
 function renderPillAlarms() {
   const container = document.getElementById('pillAlarmsContainer');
   if (!container) return;
@@ -5844,6 +5950,9 @@ async function savePillAlarm() {
 
   pillAlarms.push(newAlarm);
   localStorage.setItem('pillAlarms', JSON.stringify(pillAlarms));
+
+  // Schedule a device background notification trigger
+  scheduleNotificationTrigger(newAlarm);
   
   toast(`Pill reminder for "${medicineName}" scheduled at ${time}!`, 'success');
   toggleAddAlarmForm(false);
@@ -5853,6 +5962,10 @@ async function savePillAlarm() {
 function deletePillAlarm(id) {
   pillAlarms = pillAlarms.filter(alarm => alarm.id !== id);
   localStorage.setItem('pillAlarms', JSON.stringify(pillAlarms));
+
+  // Cancel background trigger
+  cancelNotificationTrigger(id);
+  
   toast('Reminder removed successfully', 'success');
   renderPillAlarms();
 }
@@ -5877,6 +5990,14 @@ async function togglePillAlarmStatus(id) {
 
   alarm.enabled = !alarm.enabled;
   localStorage.setItem('pillAlarms', JSON.stringify(pillAlarms));
+
+  // Register or cancel trigger
+  if (alarm.enabled) {
+    scheduleNotificationTrigger(alarm);
+  } else {
+    cancelNotificationTrigger(alarm.id);
+  }
+  
   toast(`Alarm for "${alarm.medicineName}" ${alarm.enabled ? 'enabled' : 'disabled'}!`, 'info');
   renderPillAlarms();
 }
@@ -6265,6 +6386,28 @@ function dismissPillAlarm(taken) {
     const snoozedSound = activeAlarmObject.soundType || 'beep';
     toast(`Reminder for "${snoozedName}" snoozed for 5 minutes`, 'info');
     
+    // Register PWA Trigger for 5 minutes from now in case app is quit
+    const snoozeTime = Date.now() + 5 * 60 * 1000;
+    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then(registration => {
+        if ('showTrigger' in Notification.prototype || 'TimestampTrigger' in window) {
+          registration.showNotification('MediCore Pill Reminder! (Snoozed)', {
+            body: `It's time to take your medicine: ${snoozedName}`,
+            icon: '/icons/icon-192x192.png',
+            badge: '/favicon.ico',
+            tag: snoozedId,
+            vibrate: [200, 100, 200, 100, 200, 100, 200],
+            requireInteraction: true,
+            actions: [
+              { action: 'take', title: "I've Taken It" },
+              { action: 'snooze', title: 'Snooze' }
+            ],
+            showTrigger: new TimestampTrigger(snoozeTime)
+          }).catch(e => console.warn(e));
+        }
+      });
+    }
+
     setTimeout(() => {
       // Re-trigger snooze alarm if alarm is still enabled and in localStorage
       const activeState = pillAlarms.find(a => a.id === snoozedId);
@@ -6365,7 +6508,14 @@ if ('serviceWorker' in navigator) {
       // Token expired or invalid
       localStorage.removeItem('mc_token');
       authToken = null;
+      const splash = document.getElementById('appSplash');
+      if (splash) splash.style.display = 'none';
+      const loginPage = document.getElementById('loginPage');
+      if (loginPage) loginPage.style.setProperty('display', 'flex', 'important');
     }
+  } else {
+    const splash = document.getElementById('appSplash');
+    if (splash) splash.style.display = 'none';
   }
 })();
 </script>

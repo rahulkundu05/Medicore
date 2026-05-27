@@ -5,7 +5,7 @@ const authMiddleware = require('../middleware/auth');
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET || 'medicore_secret', {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '30d',
   });
 
 // POST /api/auth/register
