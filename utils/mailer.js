@@ -37,18 +37,14 @@ async function sendRegistrationOtp(email, otp) {
       }
     };
 
-    if (host.toLowerCase().includes('gmail.com')) {
-      transportConfig.service = 'gmail';
-    } else {
-      transportConfig.host = host;
-      transportConfig.port = parseInt(port);
-      transportConfig.secure = parseInt(port) === 465;
-      transportConfig.tls = {
-        rejectUnauthorized: false
-      };
-      transportConfig.connectionTimeout = 10000;
-      transportConfig.socketTimeout = 15000;
-    }
+    transportConfig.host = host;
+    transportConfig.port = parseInt(port);
+    transportConfig.secure = parseInt(port) === 465;
+    transportConfig.tls = {
+      rejectUnauthorized: false
+    };
+    transportConfig.connectionTimeout = 10000;
+    transportConfig.socketTimeout = 15000;
 
     const transporter = nodemailer.createTransport(transportConfig);
 
