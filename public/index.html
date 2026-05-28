@@ -443,6 +443,9 @@ tailwind.config = {
         <p class="text-slate-500 text-sm leading-relaxed">
           We have sent a 6-digit verification code to <br><span id="otpTargetEmail" class="font-bold text-slate-800 dark:text-slate-100 underline decoration-brand-500 decoration-2">your email</span>.
         </p>
+        <p class="text-slate-400 dark:text-slate-500 text-xs mt-2 italic leading-relaxed">
+          <i class="fa-solid fa-circle-info mr-1 text-slate-400 dark:text-slate-500"></i> Don't see it? Please check your <strong>Spam/Junk</strong> folder, or your terminal logs if running locally.
+        </p>
       </div>
 
 
@@ -1556,7 +1559,7 @@ async function handleRegister(e) {
       showFallbackOtpWarning(data.otp);
     } else {
       hideFallbackOtpWarning();
-      toast('Verification OTP sent to your email!', 'success');
+      toast('Verification OTP sent! Check your Inbox & Spam folders.', 'success');
     }
     
     startResendCountdown();
@@ -1608,7 +1611,7 @@ async function handleResendOtp() {
       showFallbackOtpWarning(data.otp);
     } else {
       hideFallbackOtpWarning();
-      toast('A fresh verification OTP has been sent!', 'success');
+      toast('A fresh OTP has been sent! Check your Inbox & Spam folders.', 'success');
     }
 
     startResendCountdown();

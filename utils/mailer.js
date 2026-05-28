@@ -26,7 +26,7 @@ async function sendRegistrationOtp(email, otp) {
   if (!isSmtpConfigured) {
     console.log(`⚠️  [SMTP Mailer] SMTP environment variables are not fully configured.`);
     console.log(`ℹ️  Please add SMTP_HOST, SMTP_USER, and SMTP_PASS to your .env to send real emails.`);
-    return { sent: true, method: 'console' };
+    return { sent: false, method: 'console' };
   }
 
   try {
