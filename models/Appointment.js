@@ -20,8 +20,21 @@ const appointmentSchema = new mongoose.Schema({
 // Auto-generate appointmentId before save
 appointmentSchema.pre('save', async function (next) {
   if (!this.appointmentId) {
-    const count = await mongoose.model('Appointment').countDocuments();
-    this.appointmentId = 'APT' + new Date().getFullYear() + String(count + 1).padStart(4, '0');
+    const currentYear = new Date().getFullYear();
+    const prefix = `APT${currentYear}`;
+    const regex = new RegExp(`^${prefix}`);
+    const lastAppt = await mongoose.model('Appointment')
+      .findOne({ appointmentId: regex })
+      .sort({ appointmentId: -1 });
+
+    let nextNum = 1;
+    if (lastAppt) {
+      const numericPart = parseInt(lastAppt.appointmentId.substring(prefix.length));
+      if (!isNaN(numericPart)) {
+        nextNum = numericPart + 1;
+      }
+    }
+    this.appointmentId = prefix + String(nextNum).padStart(4, '0');
   }
   next();
 });
@@ -43,8 +56,20 @@ const labAppointmentSchema = new mongoose.Schema({
 
 labAppointmentSchema.pre('save', async function (next) {
   if (!this.labId) {
-    const count = await mongoose.model('LabAppointment').countDocuments();
-    this.labId = 'LAB' + String(count + 1).padStart(4, '0');
+    const prefix = 'LAB';
+    const regex = new RegExp(`^${prefix}`);
+    const lastLab = await mongoose.model('LabAppointment')
+      .findOne({ labId: regex })
+      .sort({ labId: -1 });
+
+    let nextNum = 1;
+    if (lastLab) {
+      const numericPart = parseInt(lastLab.labId.substring(prefix.length));
+      if (!isNaN(numericPart)) {
+        nextNum = numericPart + 1;
+      }
+    }
+    this.labId = prefix + String(nextNum).padStart(4, '0');
   }
   next();
 });
@@ -61,8 +86,21 @@ const emergencyBookingSchema = new mongoose.Schema({
 
 emergencyBookingSchema.pre('save', async function (next) {
   if (!this.bookingId) {
-    const count = await mongoose.model('EmergencyBooking').countDocuments();
-    this.bookingId = 'EMG' + new Date().getFullYear() + String(count + 1).padStart(4, '0');
+    const currentYear = new Date().getFullYear();
+    const prefix = `EMG${currentYear}`;
+    const regex = new RegExp(`^${prefix}`);
+    const lastBooking = await mongoose.model('EmergencyBooking')
+      .findOne({ bookingId: regex })
+      .sort({ bookingId: -1 });
+
+    let nextNum = 1;
+    if (lastBooking) {
+      const numericPart = parseInt(lastBooking.bookingId.substring(prefix.length));
+      if (!isNaN(numericPart)) {
+        nextNum = numericPart + 1;
+      }
+    }
+    this.bookingId = prefix + String(nextNum).padStart(4, '0');
   }
   next();
 });

@@ -37,8 +37,20 @@ const medicineOrderSchema = new mongoose.Schema({
 
 medicineOrderSchema.pre('save', async function (next) {
   if (!this.orderId) {
-    const count = await mongoose.model('MedicineOrder').countDocuments();
-    this.orderId = 'ORD' + String(count + 1).padStart(4, '0');
+    const prefix = 'ORD';
+    const regex = new RegExp(`^${prefix}`);
+    const lastOrder = await mongoose.model('MedicineOrder')
+      .findOne({ orderId: regex })
+      .sort({ orderId: -1 });
+
+    let nextNum = 1;
+    if (lastOrder) {
+      const numericPart = parseInt(lastOrder.orderId.substring(prefix.length));
+      if (!isNaN(numericPart)) {
+        nextNum = numericPart + 1;
+      }
+    }
+    this.orderId = prefix + String(nextNum).padStart(4, '0');
   }
   next();
 });
