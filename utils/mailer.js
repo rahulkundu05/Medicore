@@ -9,11 +9,11 @@ const nodemailer = require('nodemailer');
  * @returns {Promise<{ sent: boolean, method: 'smtp' | 'console', info?: any }>}
  */
 async function sendRegistrationOtp(email, otp) {
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT || 587;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const from = process.env.SMTP_FROM || user || 'noreply@medicore.com';
+  const host = process.env.SMTP_HOST ? process.env.SMTP_HOST.trim().replace(/^['"]|['"]$/g, '') : undefined;
+  const port = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT.toString().trim().replace(/^['"]|['"]$/g, '')) : 587;
+  const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim().replace(/^['"]|['"]$/g, '') : undefined;
+  const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.trim().replace(/^['"]|['"]$/g, '') : undefined;
+  const from = process.env.SMTP_FROM ? process.env.SMTP_FROM.trim().replace(/^['"]|['"]$/g, '') : (user || 'noreply@medicore.com');
 
   const isSmtpConfigured = !!(host && user && pass);
 

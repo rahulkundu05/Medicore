@@ -43,7 +43,12 @@ router.post('/register', async (req, res) => {
 
       const mailResult = await sendRegistrationOtp(exists.email, otp);
       if (!mailResult.sent) {
-        return res.status(500).json({ error: `Email delivery failed: ${mailResult.error || 'Unknown error'}` });
+        return res.status(200).json({
+          message: 'Account details updated. (SMTP failed, demo OTP: ' + otp + ')',
+          email: exists.email,
+          emailDeliveryFailed: true,
+          otp
+        });
       }
 
       return res.status(200).json({
@@ -66,7 +71,12 @@ router.post('/register', async (req, res) => {
 
     const mailResult = await sendRegistrationOtp(user.email, otp);
     if (!mailResult.sent) {
-      return res.status(500).json({ error: `Email delivery failed: ${mailResult.error || 'Unknown error'}` });
+      return res.status(201).json({
+        message: 'Account registered. (SMTP failed, demo OTP: ' + otp + ')',
+        email: user.email,
+        emailDeliveryFailed: true,
+        otp
+      });
     }
 
     res.status(201).json({
@@ -154,7 +164,12 @@ router.post('/resend-otp', async (req, res) => {
 
     const mailResult = await sendRegistrationOtp(user.email, otp);
     if (!mailResult.sent) {
-      return res.status(500).json({ error: `Email delivery failed: ${mailResult.error || 'Unknown error'}` });
+      return res.status(200).json({
+        message: 'A fresh OTP has been generated. (SMTP failed, demo OTP: ' + otp + ')',
+        email: user.email,
+        emailDeliveryFailed: true,
+        otp
+      });
     }
 
     res.status(200).json({

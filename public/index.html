@@ -1506,7 +1506,12 @@ async function handleLogin(e) {
       
       // Request a fresh OTP automatically
       try {
-        await POST('/auth/resend-otp', { email: pendingVerificationEmail });
+        const resendData = await POST('/auth/resend-otp', { email: pendingVerificationEmail });
+        if (resendData && resendData.emailDeliveryFailed) {
+          showFallbackOtpWarning(resendData.otp);
+        } else {
+          hideFallbackOtpWarning();
+        }
       } catch (resendErr) {
         console.warn('Failed to auto-resend OTP on block:', resendErr);
       }
@@ -1547,7 +1552,12 @@ async function handleRegister(e) {
     document.getElementById('registerCardTitle').textContent = 'Verify Email';
     document.getElementById('registerCardSubtitle').textContent = 'Enter the code sent to your inbox';
 
-    toast('Verification OTP sent to your email!', 'success');
+    if (data && data.emailDeliveryFailed) {
+      showFallbackOtpWarning(data.otp);
+    } else {
+      hideFallbackOtpWarning();
+      toast('Verification OTP sent to your email!', 'success');
+    }
     
     startResendCountdown();
     setupOtpInputs();
@@ -1593,7 +1603,13 @@ async function handleResendOtp() {
   btn.disabled = true;
   try {
     const data = await POST('/auth/resend-otp', { email: pendingVerificationEmail });
-    toast('A fresh verification OTP has been sent!', 'success');
+    
+    if (data && data.emailDeliveryFailed) {
+      showFallbackOtpWarning(data.otp);
+    } else {
+      hideFallbackOtpWarning();
+      toast('A fresh verification OTP has been sent!', 'success');
+    }
 
     startResendCountdown();
     
@@ -1628,6 +1644,30 @@ function startResendCountdown() {
   }, 1000);
 }
 
+function showFallbackOtpWarning(otp) {
+  let warningEl = document.getElementById('otpFallbackWarning');
+  if (!warningEl) {
+    warningEl = document.createElement('div');
+    warningEl.id = 'otpFallbackWarning';
+    warningEl.className = 'mt-3 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs text-center font-medium animate-pulse dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-300 mb-4';
+    const otpForm = document.getElementById('otpForm');
+    const titleBlock = otpForm.querySelector('.text-center.mb-6');
+    if (titleBlock && titleBlock.nextSibling) {
+      otpForm.insertBefore(warningEl, titleBlock.nextSibling);
+    } else {
+      otpForm.insertBefore(warningEl, otpForm.firstChild);
+    }
+  }
+  warningEl.style.display = 'block';
+  warningEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5 text-amber-600 dark:text-amber-400"></i>Email delivery failed. For testing/demo, please use OTP: <span class="font-bold text-sm underline select-all bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">${otp}</span>`;
+  toast(`⚠️ Email failed. Demo OTP: ${otp}`, 'warning');
+}
+
+function hideFallbackOtpWarning() {
+  const warningEl = document.getElementById('otpFallbackWarning');
+  if (warningEl) warningEl.style.display = 'none';
+}
+
 function cancelOtpVerification() {
   resetOtpForm();
   showRegister();
@@ -1638,6 +1678,7 @@ function resetOtpForm() {
     clearInterval(resendTimerInterval);
     resendTimerInterval = null;
   }
+  hideFallbackOtpWarning();
   document.getElementById('otpForm').reset();
   document.getElementById('otpForm').style.display = 'none';
   document.getElementById('registerForm').style.display = 'block';
