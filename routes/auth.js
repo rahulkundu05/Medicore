@@ -2,7 +2,6 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { sendRegistrationOtp, checkSmtpConfigured } = require('../utils/mailer');
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET || 'medicore_secret', {
@@ -21,218 +20,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Mobile must be 10 digits' });
 
     const exists = await User.findOne({ email: email.toLowerCase() });
-    
-    // Generate a 6-digit random OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    if (exists) return res.status(409).json({ error: 'Email already registered' });
 
-    if (exists) {
-      if (exists.isVerified) {
-        return res.status(409).json({ error: 'Email already registered' });
-      }
-
-      // If they exist but are not verified, we allow them to re-register/update their details.
-      // This prevents unverified account lockouts/duplicate errors.
-      exists.name = name;
-      exists.age = parseInt(age);
-      exists.mobile = mobile;
-      exists.password = password; // mongoose pre-save hook handles hashing!
-      exists.otp = otp;
-      exists.otpExpires = otpExpires;
-      await exists.save();
-
-      if (!checkSmtpConfigured()) {
-        return res.status(200).json({
-          message: 'Account details updated. (SMTP not configured, demo OTP: ' + otp + ')',
-          email: exists.email,
-          emailDeliveryFailed: true,
-          otp
-        });
-      }
-
-      let emailDeliveryFailed = false;
-      try {
-        const mailResult = await sendRegistrationOtp(exists.email, otp);
-        if (!mailResult || !mailResult.sent) {
-          emailDeliveryFailed = true;
-        }
-      } catch (err) {
-        console.error("❌ [SMTP Mailer Error] Failed to send register update email:", err.message);
-        emailDeliveryFailed = true;
-      }
-
-      if (emailDeliveryFailed) {
-        return res.status(200).json({
-          message: 'Account details updated. (Email delivery failed, demo OTP: ' + otp + ')',
-          email: exists.email,
-          emailDeliveryFailed: true,
-          otp
-        });
-      }
-
-      return res.status(200).json({
-        message: 'Account details updated. A new verification OTP has been sent to your email.',
-        email: exists.email
-      });
-    }
-
-    // Create a new unverified user
-    const user = await User.create({
-      name,
-      age: parseInt(age),
-      mobile,
-      email: email.toLowerCase(),
-      password,
-      isVerified: false,
-      otp,
-      otpExpires,
-    });
-
-    if (!checkSmtpConfigured()) {
-      return res.status(201).json({
-        message: 'Account registered. (SMTP not configured, demo OTP: ' + otp + ')',
-        email: user.email,
-        emailDeliveryFailed: true,
-        otp
-      });
-    }
-
-    let emailDeliveryFailed = false;
-    try {
-      const mailResult = await sendRegistrationOtp(user.email, otp);
-      if (!mailResult || !mailResult.sent) {
-        emailDeliveryFailed = true;
-      }
-    } catch (err) {
-      console.error("❌ [SMTP Mailer Error] Failed to send register email:", err.message);
-      emailDeliveryFailed = true;
-    }
-
-    if (emailDeliveryFailed) {
-      return res.status(201).json({
-        message: 'Account registered. (Email delivery failed, demo OTP: ' + otp + ')',
-        email: user.email,
-        emailDeliveryFailed: true,
-        otp
-      });
-    }
-
-    res.status(201).json({
-      message: 'Account registered. Verification OTP sent to email.',
-      email: user.email
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/auth/verify-otp
-router.post('/verify-otp', async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) {
-      return res.status(400).json({ error: 'Email and OTP are required' });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (user.isVerified) {
-      return res.status(400).json({ error: 'Email is already verified' });
-    }
-
-    if (!user.otp || !user.otpExpires) {
-      return res.status(400).json({ error: 'No OTP code requested for this account' });
-    }
-
-    if (user.otpExpires < new Date()) {
-      return res.status(400).json({ error: 'OTP has expired. Please request a new code.' });
-    }
-
-    if (user.otp !== otp.trim()) {
-      return res.status(400).json({ error: 'Incorrect OTP. Please check the code and try again.' });
-    }
-
-    // Verification successful
-    user.isVerified = true;
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    await user.save();
-
+    const user = await User.create({ name, age: parseInt(age), mobile, email, password });
     const token = signToken(user._id);
 
-    res.status(200).json({
-      message: 'Email verified successfully!',
-      token,
-      user
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/auth/resend-otp
-router.post('/resend-otp', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (user.isVerified) {
-      return res.status(400).json({ error: 'Email is already verified' });
-    }
-
-    // Generate a fresh OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.otp = otp;
-    user.otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-    await user.save();
-
-    if (!checkSmtpConfigured()) {
-      return res.status(200).json({
-        message: 'A fresh OTP has been generated. (SMTP not configured, demo OTP: ' + otp + ')',
-        email: user.email,
-        emailDeliveryFailed: true,
-        otp
-      });
-    }
-
-    let emailDeliveryFailed = false;
-    try {
-      const mailResult = await sendRegistrationOtp(user.email, otp);
-      if (!mailResult || !mailResult.sent) {
-        emailDeliveryFailed = true;
-      }
-    } catch (err) {
-      console.error("❌ [SMTP Mailer Error] Failed to send resend-otp email:", err.message);
-      emailDeliveryFailed = true;
-    }
-
-    if (emailDeliveryFailed) {
-      return res.status(200).json({
-        message: 'A fresh OTP has been generated. (Email delivery failed, demo OTP: ' + otp + ')',
-        email: user.email,
-        emailDeliveryFailed: true,
-        otp
-      });
-    }
-
-    res.status(200).json({
-      message: 'A fresh OTP has been sent to your email.',
-      email: user.email
-    });
+    res.status(201).json({ token, user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -272,7 +65,6 @@ router.post('/hospital/register', async (req, res) => {
       password,
       role: 'hospital',
       hospitalId: hospital._id,
-      isVerified: true, // Hospital registration undergoes admin approval instead
     });
 
     res.status(201).json({
@@ -297,15 +89,6 @@ router.post('/login', async (req, res) => {
 
     const match = await user.comparePassword(password);
     if (!match) return res.status(401).json({ error: 'Invalid email or password' });
-
-    // Block unverified email users
-    if (!user.isVerified) {
-      return res.status(403).json({
-        error: 'Please verify your email address first. An OTP code is required.',
-        isUnverified: true,
-        email: user.email
-      });
-    }
 
     if (user.role === 'hospital') {
       const Hospital = require('../models/Hospital');

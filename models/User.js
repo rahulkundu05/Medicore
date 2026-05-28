@@ -9,9 +9,6 @@ const userSchema = new mongoose.Schema({
   password:  { type: String, required: true, minlength: 6 },
   role:      { type: String, enum: ['patient', 'admin', 'hospital'], default: 'patient' },
   hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' },
-  isVerified: { type: Boolean, default: false },
-  otp:        { type: String },
-  otpExpires: { type: Date },
 }, { timestamps: true });
 
 // Hash password before save
