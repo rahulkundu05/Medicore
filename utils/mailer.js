@@ -96,4 +96,15 @@ async function sendRegistrationOtp(email, otp) {
   }
 }
 
-module.exports = { sendRegistrationOtp };
+/**
+ * Fast synchronous helper to check if SMTP settings are configured in memory.
+ * @returns {boolean}
+ */
+function checkSmtpConfigured() {
+  const host = process.env.SMTP_HOST ? process.env.SMTP_HOST.trim().replace(/^['"]|['"]$/g, '') : undefined;
+  const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim().replace(/^['"]|['"]$/g, '') : undefined;
+  const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.trim().replace(/^['"]|['"]$/g, '') : undefined;
+  return !!(host && user && pass);
+}
+
+module.exports = { sendRegistrationOtp, checkSmtpConfigured };

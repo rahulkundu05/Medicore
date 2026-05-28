@@ -2,7 +2,7 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { sendRegistrationOtp } = require('../utils/mailer');
+const { sendRegistrationOtp, checkSmtpConfigured } = require('../utils/mailer');
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET || 'medicore_secret', {
@@ -41,15 +41,19 @@ router.post('/register', async (req, res) => {
       exists.otpExpires = otpExpires;
       await exists.save();
 
-      const mailResult = await sendRegistrationOtp(exists.email, otp);
-      if (!mailResult.sent) {
+      if (!checkSmtpConfigured()) {
         return res.status(200).json({
-          message: 'Account details updated. (SMTP failed, demo OTP: ' + otp + ')',
+          message: 'Account details updated. (SMTP not configured, demo OTP: ' + otp + ')',
           email: exists.email,
           emailDeliveryFailed: true,
           otp
         });
       }
+
+      // Dispatch real email in background
+      sendRegistrationOtp(exists.email, otp).catch(err => {
+        console.error("❌ [Background SMTP Mailer] Failed to send register update email:", err.message);
+      });
 
       return res.status(200).json({
         message: 'Account details updated. A new verification OTP has been sent to your email.',
@@ -69,15 +73,19 @@ router.post('/register', async (req, res) => {
       otpExpires,
     });
 
-    const mailResult = await sendRegistrationOtp(user.email, otp);
-    if (!mailResult.sent) {
+    if (!checkSmtpConfigured()) {
       return res.status(201).json({
-        message: 'Account registered. (SMTP failed, demo OTP: ' + otp + ')',
+        message: 'Account registered. (SMTP not configured, demo OTP: ' + otp + ')',
         email: user.email,
         emailDeliveryFailed: true,
         otp
       });
     }
+
+    // Dispatch real email in background
+    sendRegistrationOtp(user.email, otp).catch(err => {
+      console.error("❌ [Background SMTP Mailer] Failed to send register email:", err.message);
+    });
 
     res.status(201).json({
       message: 'Account registered. Verification OTP sent to email.',
@@ -162,15 +170,19 @@ router.post('/resend-otp', async (req, res) => {
     user.otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
     await user.save();
 
-    const mailResult = await sendRegistrationOtp(user.email, otp);
-    if (!mailResult.sent) {
+    if (!checkSmtpConfigured()) {
       return res.status(200).json({
-        message: 'A fresh OTP has been generated. (SMTP failed, demo OTP: ' + otp + ')',
+        message: 'A fresh OTP has been generated. (SMTP not configured, demo OTP: ' + otp + ')',
         email: user.email,
         emailDeliveryFailed: true,
         otp
       });
     }
+
+    // Dispatch real email in background
+    sendRegistrationOtp(user.email, otp).catch(err => {
+      console.error("❌ [Background SMTP Mailer] Failed to send resend-otp email:", err.message);
+    });
 
     res.status(200).json({
       message: 'A fresh OTP has been sent to your email.',
