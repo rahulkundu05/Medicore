@@ -50,10 +50,25 @@ router.post('/register', async (req, res) => {
         });
       }
 
-      // Dispatch real email in background
-      sendRegistrationOtp(exists.email, otp).catch(err => {
-        console.error("❌ [Background SMTP Mailer] Failed to send register update email:", err.message);
-      });
+      let emailDeliveryFailed = false;
+      try {
+        const mailResult = await sendRegistrationOtp(exists.email, otp);
+        if (!mailResult || !mailResult.sent) {
+          emailDeliveryFailed = true;
+        }
+      } catch (err) {
+        console.error("❌ [SMTP Mailer Error] Failed to send register update email:", err.message);
+        emailDeliveryFailed = true;
+      }
+
+      if (emailDeliveryFailed) {
+        return res.status(200).json({
+          message: 'Account details updated. (Email delivery failed, demo OTP: ' + otp + ')',
+          email: exists.email,
+          emailDeliveryFailed: true,
+          otp
+        });
+      }
 
       return res.status(200).json({
         message: 'Account details updated. A new verification OTP has been sent to your email.',
@@ -82,10 +97,25 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Dispatch real email in background
-    sendRegistrationOtp(user.email, otp).catch(err => {
-      console.error("❌ [Background SMTP Mailer] Failed to send register email:", err.message);
-    });
+    let emailDeliveryFailed = false;
+    try {
+      const mailResult = await sendRegistrationOtp(user.email, otp);
+      if (!mailResult || !mailResult.sent) {
+        emailDeliveryFailed = true;
+      }
+    } catch (err) {
+      console.error("❌ [SMTP Mailer Error] Failed to send register email:", err.message);
+      emailDeliveryFailed = true;
+    }
+
+    if (emailDeliveryFailed) {
+      return res.status(201).json({
+        message: 'Account registered. (Email delivery failed, demo OTP: ' + otp + ')',
+        email: user.email,
+        emailDeliveryFailed: true,
+        otp
+      });
+    }
 
     res.status(201).json({
       message: 'Account registered. Verification OTP sent to email.',
@@ -179,10 +209,25 @@ router.post('/resend-otp', async (req, res) => {
       });
     }
 
-    // Dispatch real email in background
-    sendRegistrationOtp(user.email, otp).catch(err => {
-      console.error("❌ [Background SMTP Mailer] Failed to send resend-otp email:", err.message);
-    });
+    let emailDeliveryFailed = false;
+    try {
+      const mailResult = await sendRegistrationOtp(user.email, otp);
+      if (!mailResult || !mailResult.sent) {
+        emailDeliveryFailed = true;
+      }
+    } catch (err) {
+      console.error("❌ [SMTP Mailer Error] Failed to send resend-otp email:", err.message);
+      emailDeliveryFailed = true;
+    }
+
+    if (emailDeliveryFailed) {
+      return res.status(200).json({
+        message: 'A fresh OTP has been generated. (Email delivery failed, demo OTP: ' + otp + ')',
+        email: user.email,
+        emailDeliveryFailed: true,
+        otp
+      });
+    }
 
     res.status(200).json({
       message: 'A fresh OTP has been sent to your email.',
