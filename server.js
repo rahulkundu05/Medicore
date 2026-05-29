@@ -23,6 +23,7 @@ app.use('/api/appointments',require('./routes/appointments'));
 app.use('/api/medicines',   require('./routes/medicines'));
 app.use('/api/emergency',   require('./routes/emergency'));
 app.use('/api/admin',       require('./routes/admin'));
+app.use('/api/ai',          require('./routes/ai'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -521,6 +521,7 @@ tailwind.config = {
     <div class="px-2 flex-1" id="sidebarLinks">
       <p class="px-3 py-2 text-xs font-semibold text-brand-300/60 uppercase tracking-wider">Menu</p>
       <div class="sidebar-link active" data-page="dashboard" onclick="navigateTo('dashboard')"><i class="fa-solid fa-grid-2"></i><span>Dashboard</span></div>
+      <div class="sidebar-link" data-page="aiSymptomChecker" onclick="navigateTo('aiSymptomChecker')"><i class="fa-solid fa-brain"></i><span>AI Symptom Checker</span></div>
       <div class="sidebar-link" data-page="bookDoctor" onclick="navigateTo('bookDoctor')"><i class="fa-solid fa-stethoscope"></i><span>Book Doctor</span></div>
       <div class="sidebar-link" data-page="bookLab" onclick="navigateTo('bookLab')"><i class="fa-solid fa-flask-vial"></i><span>Book Lab Test</span></div>
       <div class="sidebar-link" data-page="appointments" onclick="navigateTo('appointments')"><i class="fa-solid fa-calendar-check"></i><span>Appointments</span></div>
@@ -619,6 +620,15 @@ tailwind.config = {
               <button onclick="toggleAddAlarmForm()" class="btn btn-sm btn-outline py-1 px-3 text-xs flex items-center gap-1.5 hover:bg-brand-50">
                 <i class="fa-solid fa-plus"></i> Add Reminder
               </button>
+            </div>
+
+            <!-- Background Alarm Alert Support Banner -->
+            <div class="bg-amber-50/50 border border-amber-200/50 rounded-xl p-3 text-[11px] text-amber-800 flex gap-2 items-start mb-4 shadow-sm">
+              <i class="fa-solid fa-circle-exclamation text-amber-600 mt-0.5 flex-shrink-0 text-sm"></i>
+              <div>
+                <span class="font-bold text-amber-900">Background Reminder Active:</span>
+                Due to standard browser security sandbox restrictions, continuous music ringing is supported while the tab is open. If you close the app, we schedule a high-priority lock-screen notification on your device; <strong>tap the notification to open the app and start continuous alarm ringing instantly!</strong>
+              </div>
             </div>
 
             <!-- Inline form to Add Alarm (collapsible) -->
@@ -1205,6 +1215,119 @@ tailwind.config = {
       </div>
     </section>
 
+    <!-- ===== AI SYMPTOM CHECKER ===== -->
+    <section class="page" id="page-aiSymptomChecker">
+      <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-left">
+        <div>
+          <h1 class="section-title text-3xl font-extrabold text-slate-950 flex items-center gap-2">
+            <i class="fa-solid fa-brain text-emerald-600 animate-pulse"></i> AI Symptom Checker
+          </h1>
+          <p class="text-slate-500 mt-1">Get instant insights into your health powered by advanced AI diagnosis models</p>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2 text-xs text-emerald-800 font-semibold flex items-center gap-2 self-start md:self-auto shadow-sm">
+          <i class="fa-solid fa-circle-check text-emerald-600"></i>
+          <span>Secure Clinical Mode Active</span>
+        </div>
+      </div>
+
+      <!-- Medical Disclaimer Warning banner -->
+      <div class="content-card mb-6 border-l-4 border-amber-500 bg-amber-50/50 shadow-sm rounded-2xl p-4 text-left">
+        <div class="flex gap-3">
+          <i class="fa-solid fa-circle-info text-amber-600 text-lg mt-0.5"></i>
+          <div>
+            <h4 class="font-bold text-amber-800 text-sm">Medical Disclaimer & Guidelines</h4>
+            <p class="text-xs text-amber-700/80 mt-1 leading-relaxed">
+              This AI tool is designed to provide educational, patient-friendly insights and suggest next steps based on common symptom catalogs. 
+              <strong>It is NOT a replacement for formal professional medical diagnosis, treatment, or advice.</strong> 
+              If you are experiencing severe pain, shortness of breath, chest pressure, or any life-threatening symptoms, please call emergency services or go to the nearest emergency clinic immediately.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Input Panel -->
+        <div class="lg:col-span-1 space-y-6">
+          <div class="content-card shadow-md border border-slate-100 rounded-2xl p-5 text-left bg-white">
+            <h3 class="font-bold text-slate-800 text-base mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-notes-medical text-emerald-600"></i> Describe Your Symptoms
+            </h3>
+            
+            <div class="space-y-4">
+              <!-- Textarea symptoms -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1.5">How are you feeling?</label>
+                <textarea id="aiSymptomInput" class="form-input focus:ring-emerald-500 rounded-xl text-sm w-full p-3 border border-slate-200" rows="5" placeholder="e.g. I have had a dull stomach pain for the last 2 days that gets worse after meals, along with occasional bloating..."></textarea>
+              </div>
+
+              <!-- Quick tags -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Common Symptoms (Quick Select)</label>
+                <div class="flex flex-wrap gap-1.5" id="symptomQuickTags">
+                  <button type="button" class="text-[11px] py-1 px-2.5 rounded-full border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition cursor-pointer" onclick="appendSymptomTag('High fever')">🤒 High Fever</button>
+                  <button type="button" class="text-[11px] py-1 px-2.5 rounded-full border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition cursor-pointer" onclick="appendSymptomTag('Chest pain & tightness')">🫀 Chest Pain</button>
+                  <button type="button" class="text-[11px] py-1 px-2.5 rounded-full border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition cursor-pointer" onclick="appendSymptomTag('Throbbing headache')">🧠 Headache</button>
+                  <button type="button" class="text-[11px] py-1 px-2.5 rounded-full border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition cursor-pointer" onclick="appendSymptomTag('Dry cough & sore throat')">💨 Cough</button>
+                  <button type="button" class="text-[11px] py-1 px-2.5 rounded-full border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition cursor-pointer" onclick="appendSymptomTag('Itchy skin rash')">🧴 Skin Rash</button>
+                  <button type="button" class="text-[11px] py-1 px-2.5 rounded-full border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition cursor-pointer" onclick="appendSymptomTag('Stomach ache & nausea')">🤢 Stomach Pain</button>
+                  <button type="button" class="text-[11px] py-1 px-2.5 rounded-full border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition cursor-pointer" onclick="appendSymptomTag('Extreme fatigue')">💤 Fatigue</button>
+                  <button type="button" class="text-[11px] py-1 px-2.5 rounded-full border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 font-medium transition cursor-pointer" onclick="appendSymptomTag('Dizziness & lightheadedness')">🌀 Dizziness</button>
+                </div>
+              </div>
+
+              <!-- Demographics (pre-populated) -->
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-500 mb-1">Age</label>
+                  <input type="number" id="aiSymptomAge" class="form-input text-xs rounded-lg py-1.5 w-full p-2 border border-slate-200" min="1" max="120" placeholder="e.g. 28">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-500 mb-1">Gender</label>
+                  <select id="aiSymptomGender" class="form-select text-xs rounded-lg py-1.5 w-full p-2 border border-slate-200">
+                    <option value="Not specified">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Submit button -->
+              <button class="btn btn-accent w-full py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 mt-4 text-white text-sm" onclick="analyzeSymptoms()" id="aiSymptomSubmitBtn">
+                <i class="fa-solid fa-stethoscope"></i> Analyze Symptoms
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output Results Panel -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Initial Placeholder -->
+          <div id="aiSymptomPlaceholder" class="content-card flex flex-col items-center justify-center text-center p-12 bg-white border border-slate-100 rounded-2xl shadow-sm h-full min-h-[400px]">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 text-3xl mb-4 animate-bounce-subtle">
+              <i class="fa-solid fa-brain"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800">Your AI Analysis Awaits</h3>
+            <p class="text-sm text-slate-400 mt-2 max-w-sm">Describe your symptoms in detail and tap "Analyze Symptoms" to get instant diagnostic insight and integrated deep actions.</p>
+          </div>
+
+          <!-- Loading State -->
+          <div id="aiSymptomLoading" style="display:none;" class="content-card flex flex-col items-center justify-center text-center p-12 bg-white border border-slate-100 rounded-2xl shadow-sm h-full min-h-[400px]">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mb-4 text-emerald-600">
+              <i class="fa-solid fa-spinner animate-spin text-3xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 animate-pulse">Analyzing Symptoms...</h3>
+            <p class="text-sm text-slate-400 mt-2 max-w-sm">Please wait while our medical AI reviews your description, maps matching specialists, tests, and pharmacy catalog stock...</p>
+          </div>
+
+          <!-- Result Container (Dynamically rendered) -->
+          <div id="aiSymptomResults" style="display:none;" class="space-y-6">
+            <!-- Results get dynamically populated here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== PROFILE ===== -->
     <section class="page" id="page-profile">
       <div class="mb-6">
@@ -1558,6 +1681,7 @@ function enterApp() {
     sidebarLinks.innerHTML = `
       <p class="px-3 py-2 text-xs font-semibold text-brand-300/60 uppercase tracking-wider">Menu</p>
       <div class="sidebar-link active" data-page="dashboard" onclick="navigateTo('dashboard')"><i class="fa-solid fa-grid-2 mr-2"></i><span>Dashboard</span></div>
+      <div class="sidebar-link" data-page="aiSymptomChecker" onclick="navigateTo('aiSymptomChecker')"><i class="fa-solid fa-brain mr-2"></i><span>AI Symptom Checker</span></div>
       <div class="sidebar-link" data-page="bookDoctor" onclick="navigateTo('bookDoctor')"><i class="fa-solid fa-stethoscope mr-2"></i><span>Book Doctor</span></div>
       <div class="sidebar-link" data-page="bookLab" onclick="navigateTo('bookLab')"><i class="fa-solid fa-flask-vial mr-2"></i><span>Book Lab Test</span></div>
       <div class="sidebar-link" data-page="appointments" onclick="navigateTo('appointments')"><i class="fa-solid fa-calendar-check mr-2"></i><span>Appointments</span></div>
@@ -1585,6 +1709,7 @@ function navigateTo(page) {
   document.getElementById('sidebar').classList.remove('open');
 
   if (page === 'dashboard')      initDashboard();
+  if (page === 'aiSymptomChecker') initAISymptomChecker();
   if (page === 'bookLab')        initLabTests();
   if (page === 'medicines')      initMedicines();
   if (page === 'doctors')        initDoctorsPage();
@@ -4589,6 +4714,7 @@ function renderAdminUsersTable(users) {
             <th class="p-4 text-xs font-bold text-slate-500 uppercase">Mobile</th>
             <th class="p-4 text-xs font-bold text-slate-500 uppercase">Registered Date</th>
             <th class="p-4 text-xs font-bold text-slate-500 uppercase">Linked Hospital Clinic</th>
+            <th class="p-4 text-xs font-bold text-slate-500 uppercase">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-50">`;
@@ -4607,7 +4733,7 @@ function renderAdminUsersTable(users) {
     
     let linkedHosp = '—';
     if (u.role === 'hospital') {
-      linkedHosp = `<span class="font-semibold text-brand-700 flex items-center gap-1.5"><i class="fa-solid fa-hospital"></i>${u.name}</span>`;
+      linkedHosp = u.hospitalId ? `<span class="font-semibold text-brand-700 flex items-center gap-1.5"><i class="fa-solid fa-hospital"></i>${u.hospitalId.name}</span>` : `<span class="text-rose-400 font-semibold italic flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation"></i>Unconfigured</span>`;
     }
 
     html += `
@@ -4637,6 +4763,16 @@ function renderAdminUsersTable(users) {
             <td class="p-4 text-xs text-slate-700">
               ${linkedHosp}
             </td>
+            <td class="p-4 text-xs text-slate-500 flex gap-2">
+              <button class="btn btn-sm btn-outline py-1 px-2.5 text-xs flex items-center gap-1 hover:bg-slate-100 cursor-pointer" onclick="editAdminUser('${u._id}')">
+                <i class="fa-solid fa-pencil text-[10px]"></i> Edit
+              </button>
+              ${String(u._id) !== String(currentUser._id) ? `
+                <button class="btn btn-sm btn-danger py-1 px-2.5 text-xs flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white border-none cursor-pointer" onclick="deleteAdminUser('${u._id}')">
+                  <i class="fa-solid fa-trash text-[10px]"></i> Delete
+                </button>
+              ` : ''}
+            </td>
           </tr>`;
   });
 
@@ -4646,6 +4782,119 @@ function renderAdminUsersTable(users) {
     </div>`;
 
   container.innerHTML = html;
+}
+
+// Admin Action Handlers for Users (Patients/Hospitals)
+async function editAdminUser(userId) {
+  const user = adminUsersList.find(u => u._id === userId);
+  if (!user) return toast('User details not found', 'error');
+
+  let hospitalOptions = '<option value="">Not linked</option>';
+  try {
+    const data = await GET('/admin/hospitals');
+    data.hospitals.forEach(h => {
+      hospitalOptions += `<option value="${h._id}" ${String(user.hospitalId && (user.hospitalId._id || user.hospitalId)) === String(h._id) ? 'selected' : ''}>${h.name}</option>`;
+    });
+  } catch (err) {
+    console.warn("Failed to fetch hospitals:", err);
+  }
+
+  const title = `<i class="fa-solid fa-user-pen text-indigo-500 mr-2"></i>Edit User Profile`;
+  const body = `
+    <div class="space-y-4 text-left">
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Full Name</label>
+        <input type="text" id="editUserName" class="form-input" value="${user.name}">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1.5">Age</label>
+          <input type="number" id="editUserAge" class="form-input" value="${user.age || ''}" min="1" max="120">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1.5">Mobile Number</label>
+          <input type="tel" id="editUserMobile" class="form-input" value="${user.mobile || ''}" pattern="[0-9]{10}">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">System Role</label>
+        <select id="editUserRole" class="form-select" onchange="toggleEditUserHospitalSelector()">
+          <option value="patient" ${user.role === 'patient' ? 'selected' : ''}>Patient</option>
+          <option value="hospital" ${user.role === 'hospital' ? 'selected' : ''}>Hospital Representative</option>
+          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrator</option>
+        </select>
+      </div>
+      <div id="editUserHospitalContainer" style="display: ${user.role === 'hospital' ? 'block' : 'none'};">
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Link Healthcare Facility</label>
+        <select id="editUserHospital" class="form-select">${hospitalOptions}</select>
+      </div>
+    </div>
+  `;
+
+  const actions = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-accent" onclick="saveAdminUser('${userId}')">Save Changes</button>
+  `;
+
+  showModal(title, body, actions);
+}
+
+// Injected helper specifically for global window accessibility
+window.toggleEditUserHospitalSelector = function() {
+  const role = document.getElementById('editUserRole').value;
+  document.getElementById('editUserHospitalContainer').style.display = role === 'hospital' ? 'block' : 'none';
+};
+
+async function saveAdminUser(userId) {
+  const name = document.getElementById('editUserName').value.trim();
+  const age = Number(document.getElementById('editUserAge').value);
+  const mobile = document.getElementById('editUserMobile').value.trim();
+  const role = document.getElementById('editUserRole').value;
+  const hospitalId = document.getElementById('editUserHospital') ? document.getElementById('editUserHospital').value : '';
+
+  if (!name) return toast('Name is required.', 'warning');
+  if (!age || age < 1 || age > 120) return toast('Valid age required (1-120).', 'warning');
+  if (!/^\d{10}$/.test(mobile)) return toast('Mobile must be a 10 digit number.', 'warning');
+
+  try {
+    const payload = { name, age, mobile, role, hospitalId };
+    await PUT('/admin/users/' + userId, payload);
+    closeModal();
+    toast('User account successfully updated!', 'success');
+    initAdminManageUsers();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function deleteAdminUser(userId) {
+  const user = adminUsersList.find(u => u._id === userId);
+  if (!user) return;
+
+  const title = `<i class="fa-solid fa-triangle-exclamation text-rose-500 mr-2"></i>Delete User Account`;
+  const body = `
+    <p class="text-sm text-slate-600 leading-relaxed text-left">
+      Are you sure you want to permanently delete the registered account for <strong>${user.name}</strong> (${user.email})? 
+      All security credentials, user settings, and diagnostic logs associated with this user will be removed.
+    </p>
+  `;
+  const actions = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-danger bg-red-600 hover:bg-red-700 text-white" onclick="confirmDeleteAdminUser('${userId}')">Delete Permanently</button>
+  `;
+
+  showModal(title, body, actions);
+}
+
+async function confirmDeleteAdminUser(userId) {
+  try {
+    await DELETE('/admin/users/' + userId);
+    closeModal();
+    toast('User account successfully deleted.', 'success');
+    initAdminManageUsers();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 let adminEmergencyAlertsList = [];
@@ -6493,6 +6742,316 @@ if ('serviceWorker' in navigator) {
       }
     }
   });
+}
+
+// =====================================================================
+// AI SYMPTOM CHECKER
+// =====================================================================
+function initAISymptomChecker() {
+  document.getElementById('aiSymptomInput').value = '';
+  document.getElementById('aiSymptomPlaceholder').style.display = 'flex';
+  document.getElementById('aiSymptomLoading').style.display = 'none';
+  document.getElementById('aiSymptomResults').style.display = 'none';
+  document.getElementById('aiSymptomResults').innerHTML = '';
+  
+  if (currentUser) {
+    document.getElementById('aiSymptomAge').value = currentUser.age || '';
+  } else {
+    document.getElementById('aiSymptomAge').value = '';
+  }
+  document.getElementById('aiSymptomGender').value = 'Not specified';
+}
+
+function appendSymptomTag(tag) {
+  const input = document.getElementById('aiSymptomInput');
+  const currentVal = input.value.trim();
+  if (currentVal === '') {
+    input.value = tag;
+  } else {
+    input.value = currentVal + ', ' + tag;
+  }
+}
+
+async function analyzeSymptoms() {
+  const symptoms = document.getElementById('aiSymptomInput').value.trim();
+  const age = document.getElementById('aiSymptomAge').value.trim();
+  const gender = document.getElementById('aiSymptomGender').value;
+
+  if (!symptoms) {
+    toast('Please describe your symptoms before analyzing.', 'warning');
+    return;
+  }
+
+  const placeholder = document.getElementById('aiSymptomPlaceholder');
+  const loading = document.getElementById('aiSymptomLoading');
+  const results = document.getElementById('aiSymptomResults');
+
+  placeholder.style.display = 'none';
+  results.style.display = 'none';
+  loading.style.display = 'flex';
+
+  try {
+    // 1. Fetch AI Symptom Check Analysis
+    const response = await POST('/ai/symptom-check', { symptoms, age, gender });
+    
+    if (!response.success || !response.data) {
+      throw new Error(response.error || "Invalid response from AI model.");
+    }
+
+    const data = response.data;
+
+    // 2. Fetch catalogs dynamically to deep-link match items
+    let medicinesCatalog = [];
+    let labTestsCatalog = [];
+    
+    try {
+      const medsData = await GET('/medicines');
+      medicinesCatalog = medsData.medicines.map(m => ({ id: m._id, name: m.name, price: m.price, stock: m.stock }));
+    } catch (e) {
+      console.warn("Failed to pre-fetch medicines catalog for deep links:", e);
+    }
+
+    try {
+      const testsData = await GET('/labtests');
+      labTestsCatalog = testsData.tests.map(t => ({ id: t._id, name: t.name, charge: t.charge }));
+    } catch (e) {
+      console.warn("Failed to pre-fetch lab tests catalog for deep links:", e);
+    }
+
+    // 3. Risk styling config
+    let riskText = data.risk_level || 'Low';
+    let riskBgClass = 'bg-emerald-500';
+    let riskBadgeClass = 'bg-emerald-50 text-emerald-800 border border-emerald-200';
+    let riskDotClass = 'bg-emerald-500';
+    
+    if (riskText.toLowerCase() === 'high') {
+      riskBgClass = 'bg-rose-500';
+      riskBadgeClass = 'bg-rose-50 text-rose-800 border border-rose-200';
+      riskDotClass = 'bg-rose-500';
+    } else if (riskText.toLowerCase() === 'medium' || riskText.toLowerCase() === 'moderate') {
+      riskBgClass = 'bg-amber-500';
+      riskBadgeClass = 'bg-amber-50 text-amber-800 border border-amber-200';
+      riskDotClass = 'bg-amber-500';
+      riskText = 'Medium';
+    }
+
+    // 4. Render results beautifully
+    results.innerHTML = `
+      <div class="content-card shadow-lg border border-slate-100 rounded-3xl bg-white p-6 text-left relative overflow-hidden transition-all duration-300 hover:shadow-xl">
+        <!-- Risk indicator border -->
+        <div class="absolute top-0 left-0 right-0 h-1.5 ${riskBgClass}"></div>
+        
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-xs font-bold ${riskBadgeClass} flex items-center gap-1.5 animate-pulse">
+              <span class="w-2 h-2 rounded-full ${riskDotClass}"></span>
+              ${riskText} Risk Level
+            </span>
+            <span class="text-xs text-slate-400 font-medium">AI Clinical Analysis</span>
+          </div>
+          <span class="text-[10px] text-slate-300 font-serif">ID: AI-${Math.floor(Math.random() * 900000 + 100000)}</span>
+        </div>
+
+        <h3 class="text-xl font-bold text-slate-900 leading-tight mb-2">Clinical Assessment</h3>
+        <p class="text-sm text-slate-600 leading-relaxed mb-6 font-medium bg-slate-50 border border-slate-100 rounded-xl p-4 italic">${data.condition_analysis}</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <!-- Symptoms Experienced -->
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+            <h4 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-clipboard-user text-emerald-600"></i> Symptoms Experienced
+            </h4>
+            <p class="text-xs text-slate-600 leading-relaxed">${data.symptoms_reported || "Patient described symptoms requiring triage."}</p>
+          </div>
+
+          <!-- Underlying Causes -->
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+            <h4 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-question text-emerald-600"></i> Underlying Causes
+            </h4>
+            <p class="text-xs text-slate-600 leading-relaxed">${data.underlying_causes || "Triggers or environmental influences matching symptom reports."}</p>
+          </div>
+        </div>
+
+        <!-- Potential Diseases -->
+        <div class="mb-6">
+          <h4 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-3">Suspected Diseases & Conditions</h4>
+          <div class="space-y-2">
+            ${(data.possible_diseases || data.possible_causes || []).map(disease => `
+              <div class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50/50 border border-slate-100 text-sm text-slate-700">
+                <i class="fa-solid fa-triangle-exclamation text-emerald-500 mt-1 flex-shrink-0 text-xs"></i>
+                <span>${disease}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Prevention Strategies -->
+        <div class="mb-6">
+          <h4 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <i class="fa-solid fa-shield-halved text-emerald-600"></i> How to Prevent the Disease
+          </h4>
+          <div class="space-y-2">
+            ${(data.prevention_strategies || []).map(strategy => `
+              <div class="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-50/20 border border-emerald-100/50 text-xs text-slate-700">
+                <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 flex-shrink-0 text-[10px]"></i>
+                <span>${strategy}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Red Flags / Emergency Warnings -->
+        ${(data.red_flags && riskText.toLowerCase() === 'high') ? `
+          <div class="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-left">
+            <div class="flex gap-3">
+              <i class="fa-solid fa-circle-exclamation text-rose-600 text-2xl animate-bounce-subtle mt-0.5"></i>
+              <div>
+                <h4 class="font-extrabold text-rose-900 text-sm">CRITICAL WARNING: Red Flags Detected</h4>
+                <p class="text-xs text-rose-800/90 mt-1 leading-relaxed">${data.red_flags}</p>
+                <button class="btn btn-sm btn-danger mt-3 py-1.5 px-4 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-sm" onclick="navigateTo('emergency')">
+                  <i class="fa-solid fa-truck-medical"></i> Book Emergency Slot / Ambulance
+                </button>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="mb-6">
+          <h4 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-3">Symptom Management & Self-Care</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            ${(data.self_care || []).map(tip => `
+              <div class="flex items-start gap-2 p-2.5 rounded-xl border border-slate-100 text-xs text-slate-600 bg-white shadow-sm">
+                <i class="fa-solid fa-heart text-emerald-500 mt-0.5 text-[10px] flex-shrink-0"></i>
+                <span>${tip}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Deep Actions Integration Hub -->
+        <div class="pt-5 border-t border-slate-100 space-y-4">
+          <h4 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Actionable Next Steps</h4>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- 1. Recommended Doctors -->
+            <div class="p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100 flex flex-col justify-between">
+              <div>
+                <h5 class="text-xs font-bold text-emerald-800 flex items-center gap-1.5 mb-1.5">
+                  <i class="fa-solid fa-user-doctor"></i> Consult Specialist
+                </h5>
+                <p class="text-[11px] text-slate-400 mb-3">Consult these matching departments for safe diagnosis.</p>
+                <div class="flex flex-col gap-1.5">
+                  ${(data.recommended_specialties || []).map(spec => {
+                    const standardSpecs = ["Cardiology", "Dermatology", "General", "Neurology", "Orthopedics", "ENT", "Pediatrics"];
+                    const cleanSpec = standardSpecs.find(s => s.toLowerCase() === spec.toLowerCase()) || "General";
+                    return `
+                      <button class="w-full text-left py-1.5 px-3 rounded-lg bg-white border border-slate-100 hover:border-emerald-500 hover:text-emerald-700 transition text-[11px] font-semibold text-slate-600 flex items-center justify-between font-sans cursor-pointer animate-pulse"
+                        onclick="navigateTo('bookDoctor'); setTimeout(() => { document.getElementById('symptomInput').value = '${cleanSpec.toLowerCase()}'; findDoctors(); }, 150)">
+                        <span>${cleanSpec} Department</span>
+                        <i class="fa-solid fa-chevron-right text-[8px] opacity-40"></i>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Recommended Lab Tests -->
+            <div class="p-4 rounded-2xl bg-blue-50/30 border border-blue-100 flex flex-col justify-between">
+              <div>
+                <h5 class="text-xs font-bold text-blue-800 flex items-center gap-1.5 mb-1.5">
+                  <i class="fa-solid fa-flask-vial"></i> Diagnostic Tests
+                </h5>
+                <p class="text-[11px] text-slate-400 mb-3">Diagnostic laboratory panels matched to your symptoms.</p>
+                <div class="flex flex-col gap-1.5">
+                  ${(data.suggested_tests || []).map(testName => {
+                    const matchedTest = labTestsCatalog.find(t => t.name.toLowerCase() === testName.toLowerCase() || t.name.toLowerCase().includes(testName.toLowerCase()));
+                    if (matchedTest) {
+                      return `
+                        <button class="w-full text-left py-1.5 px-3 rounded-lg bg-white border border-slate-100 hover:border-blue-500 hover:text-blue-700 transition text-[11px] font-semibold text-slate-600 flex items-center justify-between font-sans cursor-pointer"
+                          onclick="navigateTo('bookLab'); setTimeout(() => { selectLabTest('${matchedTest.id}', '${matchedTest.name}'); }, 150)">
+                          <span>${matchedTest.name}</span>
+                          <span class="text-[9px] text-blue-600 font-bold">Book &#8377;${matchedTest.charge}</span>
+                        </button>
+                      `;
+                    } else {
+                      return `
+                        <button class="w-full text-left py-1.5 px-3 rounded-lg bg-white border border-slate-100 hover:border-blue-500 hover:text-blue-700 transition text-[11px] font-semibold text-slate-600 flex items-center justify-between font-sans cursor-pointer"
+                          onclick="navigateTo('bookLab')">
+                          <span>${testName}</span>
+                          <i class="fa-solid fa-magnifying-glass text-[8px] opacity-40"></i>
+                        </button>
+                      `;
+                    }
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. OTC Medicines Store -->
+            <div class="p-4 rounded-2xl bg-amber-50/30 border border-amber-100 flex flex-col justify-between">
+              <div>
+                <h5 class="text-xs font-bold text-amber-800 flex items-center gap-1.5 mb-1.5">
+                  <i class="fa-solid fa-pills"></i> Pharmacy Stock
+                </h5>
+                <p class="text-[11px] text-slate-400 mb-3">Over-the-counter medicine suggestions matched in stock.</p>
+                <div class="flex flex-col gap-1.5">
+                  ${(data.suggested_medications || []).map(medName => {
+                    const matchedMed = medicinesCatalog.find(m => m.name.toLowerCase() === medName.toLowerCase() || m.name.toLowerCase().includes(medName.toLowerCase()));
+                    if (matchedMed) {
+                      if (matchedMed.stock > 0) {
+                        return `
+                          <button class="w-full text-left py-1.5 px-3 rounded-lg bg-white border border-slate-100 hover:border-amber-500 hover:text-amber-700 transition text-[11px] font-semibold text-slate-600 flex items-center justify-between font-sans cursor-pointer"
+                            onclick="addToCart('${matchedMed.id}', '${matchedMed.name}', ${matchedMed.price}, ${matchedMed.stock});">
+                            <span>${matchedMed.name}</span>
+                            <span class="text-[9px] text-amber-600 font-bold">Add &#8377;${matchedMed.price}</span>
+                          </button>
+                        `;
+                      } else {
+                        return `
+                          <div class="w-full text-left py-1.5 px-3 rounded-lg bg-white border border-slate-100 text-[11px] font-semibold text-slate-400 flex items-center justify-between opacity-60 font-sans">
+                            <span>${matchedMed.name}</span>
+                            <span class="text-[8px] text-rose-500 font-bold">Out of Stock</span>
+                          </div>
+                        `;
+                      }
+                    } else {
+                      return `
+                        <button class="w-full text-left py-1.5 px-3 rounded-lg bg-white border border-slate-100 hover:border-amber-500 hover:text-amber-700 transition text-[11px] font-semibold text-slate-600 flex items-center justify-between font-sans cursor-pointer"
+                          onclick="navigateTo('medicines')">
+                          <span>${medName}</span>
+                          <i class="fa-solid fa-magnifying-glass text-[8px] opacity-40"></i>
+                        </button>
+                      `;
+                    }
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Medication Usage Guidelines -->
+          ${data.medicine_clinical_notes ? `
+            <div class="mt-4 p-4 rounded-2xl bg-amber-50/20 border border-amber-100/50 text-left text-xs">
+              <h5 class="font-extrabold text-amber-900 flex items-center gap-1.5 mb-1">
+                <i class="fa-solid fa-clipboard-check"></i> Safe Medication Usage Guidelines
+              </h5>
+              <p class="text-slate-600 leading-relaxed">${data.medicine_clinical_notes}</p>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+
+    results.style.display = 'block';
+    loading.style.display = 'none';
+
+  } catch (err) {
+    console.error("Symptom checker error:", err);
+    loading.style.display = 'none';
+    placeholder.style.display = 'flex';
+    toast(err.message || 'AI analysis failed. Please try again.', 'error');
+  }
 }
 
 // =====================================================================

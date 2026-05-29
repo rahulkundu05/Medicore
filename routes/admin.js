@@ -162,8 +162,50 @@ router.delete('/hospitals/:id', adminCheck, async (req, res) => {
 // GET /api/admin/users – retrieve all users on the platform
 router.get('/users', adminCheck, async (req, res) => {
   try {
-    const usersList = await User.find().sort('role name');
+    const usersList = await User.find().populate('hospitalId', 'name').sort('role name');
     res.json({ users: usersList });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/users/:id – update user account details (System Admin Only)
+router.put('/users/:id', adminCheck, async (req, res) => {
+  try {
+    const { name, age, mobile, role, hospitalId } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User account not found.' });
+
+    // Protect active admin account
+    if (String(user._id) === String(req.user._id) && role !== undefined && role !== 'admin') {
+      return res.status(400).json({ error: 'You cannot change your own Administrator role.' });
+    }
+
+    if (name !== undefined) user.name = name;
+    if (age !== undefined) user.age = Number(age);
+    if (mobile !== undefined) user.mobile = mobile;
+    if (role !== undefined) user.role = role;
+    if (hospitalId !== undefined) user.hospitalId = hospitalId || undefined;
+
+    await user.save();
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/users/:id – delete a user account from the platform (System Admin Only)
+router.delete('/users/:id', adminCheck, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (String(userId) === String(req.user._id)) {
+      return res.status(400).json({ error: 'You cannot delete your own Administrator account.' });
+    }
+
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) return res.status(404).json({ error: 'User account not found.' });
+
+    res.json({ message: 'User account successfully deleted', id: userId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
